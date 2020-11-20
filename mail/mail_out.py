@@ -36,7 +36,7 @@ class EMailSender:
 
         return self
 
-    def send_feedback(self, students, message, feedback_path, exercise_prefix, exercise_number, debug=False):
+    def send_mail(self, students, message, subject, attachment_file=None, debug=False):
         def normalize_mail(name, mail):
             name = Header(f'{name}'.encode('utf-8'), 'utf-8').encode()
             return f'{name} <{mail}>'
@@ -49,13 +49,14 @@ class EMailSender:
         email_message.add_header('From', from_email)
         email_message.add_header('To', ', '.join(to_emails))
         email_message.add_header('CC', from_email)
-        email_message.add_header('Subject', f'[IAD-20] Feedback zu {exercise_prefix} {exercise_number}')
+        email_message.add_header('Subject', subject)
 
         text_part = MIMEText(message, 'plain')
-        attachment = create_file_attachment(feedback_path)
-
         email_message.attach(text_part)
-        email_message.attach(attachment)
+
+        if attachment_file is not None:
+            attachment = create_file_attachment(attachment_file)
+            email_message.attach(attachment)
 
         if debug:
             to_emails = [from_email]

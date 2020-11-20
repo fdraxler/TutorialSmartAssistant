@@ -1,3 +1,5 @@
+from traceback import format_exc
+
 from assistance.command.connection import ConnectionCommand
 from assistance.command.crossover import ImportCommand, ExportCommand
 from assistance.command.help import HelpCommand
@@ -5,7 +7,7 @@ from assistance.command.info import InfoCommand
 from assistance.command.present import PresentCommand
 from assistance.command.stop import StopCommand
 from assistance.command.workflow import WorkflowDownloadCommand, WorkflowUnzipCommand, WorkflowPrepareCommand, \
-    WorkflowConsolidate, WorkflowUpload, WorkflowSendMail
+    WorkflowConsolidate, WorkflowUpload, WorkflowSendMail, WorkflowSendCrossTask
 from assistance.commands import CommandRegister, parse_command, normalize_string
 from data.storage import InteractiveDataStorage
 from moodle.api import MoodleSession
@@ -36,6 +38,7 @@ class SmartAssistant:
         self._command_register.register_command(WorkflowConsolidate(self._printer, self._storage))
         self._command_register.register_command(WorkflowUpload(self._printer, self._storage, self._muesli))
         self._command_register.register_command(WorkflowSendMail(self._printer, self._storage))
+        self._command_register.register_command(WorkflowSendCrossTask(self._printer, self._storage))
 
         self._command_register.register_command(ImportCommand(self._printer, self._storage))
         self._command_register.register_command(ExportCommand(self._printer, self._storage))
@@ -123,7 +126,7 @@ class SmartAssistant:
                 self._printer.error("Please refer to 'help' / '?' to list all available commands.")
 
             except Exception as e:
-                self._printer.error(f'{e.__class__.__name__}: {e}')
+                self._printer.error(f'{e.__class__.__name__}: {e}\n{format_exc()}')
 
         self._printer.inform()
 

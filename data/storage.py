@@ -12,7 +12,7 @@ from data.data import Student, Tutorial
 from data.student_matching import match_students, print_result_table
 from moodle.api import MoodleSession
 from muesli.api import MuesliSession
-from util.config import load_config
+from util.config import load_config, mixin_passwords
 
 
 def ensure_folder_exists(path):
@@ -143,6 +143,7 @@ class PhysicalDataStorage:
         return result
 
 
+
 class InteractiveDataStorage:
     __instance = None
 
@@ -158,7 +159,7 @@ class InteractiveDataStorage:
         InteractiveDataStorage.__instance.exported_students = list()
         InteractiveDataStorage.__instance.imported_students = list()
         InteractiveDataStorage.__instance.scores = dict()
-        InteractiveDataStorage.__instance.account_data = load_config("account_data.json")
+        InteractiveDataStorage.__instance.account_data = mixin_passwords(load_config("account_data.json"))
         InteractiveDataStorage.__instance.config = load_config("config.json")
         storage_config = InteractiveDataStorage.__instance.config.storage
         InteractiveDataStorage.__instance.physical_storage = PhysicalDataStorage(storage_config)
@@ -476,6 +477,19 @@ class InteractiveDataStorage:
         if result is None:
             location = "(storage.py: get_student_by_muesli_id)"
             raise ValueError(f"There is no student with the MÜSLI-Id {muesli_id} {location}")
+
+        return result
+
+    def get_student_by_moodle_id(self, moodle_id):
+        result = None
+        for student in self.all_students:
+            if student.moodle_student_id == moodle_id:
+                result = student
+                break
+
+        if result is None:
+            location = "(storage.py: get_student_by_moodle_id)"
+            raise ValueError(f"There is no student with the Moodle-Id {moodle_id} {location}")
 
         return result
 

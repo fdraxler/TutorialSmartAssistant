@@ -76,11 +76,11 @@ class MoodleSession:
         url = f'https://moodle.uni-heidelberg.de/user/index.php?id={course_id}&perpage=5000'
         response = self._session.get(url)
         soup = BeautifulSoup(response.content, 'html.parser')
-        table = soup.find('table', attrs={'class': 'flexible generaltable generalbox'}).find('tbody')
+        table = soup.find('table', attrs={'id': 'participants'}).find('tbody')
         students = list()
 
         for row in table.find_all('tr'):
-            columns = row.find_all('td')
+            columns = list(row.children)
             anchor = columns[1].find('a')
             if anchor is not None and columns[3].text == student_role:
                 name, profile_url = columns[1].text, anchor['href']
@@ -97,15 +97,19 @@ class MoodleSession:
             return x and x.startswith('section-')
 
         def is_matching_label(x):
-            return x and x.startswith(f'{exercise_prefix}{exercise_number}')
+            if x:
+                section_header = table.find("h3", {"id": x})
+                if section_header:
+                    return section_header.text.startswith(f'{exercise_prefix}{exercise_number}')
+            return False
 
         def is_matching_url(x):
             return x and x.startswith('https://moodle.uni-heidelberg.de/mod/assign/view.php?id=')
 
         soup = self.get_course_page(course_id)
         table = soup.find('ul', attrs={'class': 'topics'})
-        section = table.find('li', attrs={"id": is_matching_id, "aria-label": is_matching_label})
-        submission_link = section.find('a', attrs={'href':is_matching_url})['href'] + "&action=grading"
+        section = table.find('li', attrs={"id": is_matching_id, "aria-labelledby": is_matching_label})
+        submission_link = section.find('a', attrs={'href': is_matching_url})['href'] + "&action=grading"
 
         soup = self._show_all_submissions(submission_link)
         rows = soup.find('table').find('tbody').find_all('tr')
@@ -113,9 +117,9 @@ class MoodleSession:
         result = list()
         for row in rows:
             columns = row.find_all('td')
-            moodle_student_id = int(columns[0].find('input', attrs={'type':'checkbox'})['value'])
+            moodle_student_id = int(columns[0].find('input', attrs={'type': 'checkbox'})['value'])
             name = columns[2].find('a').text
-            download_anchor = columns[8].find_all('a', attrs={'target':'_blank'})
+            download_anchor = columns[8].find_all('a', attrs={'target': '_blank'})
 
             if len(download_anchor) > 0:
                 if len(download_anchor) > 1:
@@ -127,7 +131,7 @@ class MoodleSession:
                 submission_name = download_anchor.text
                 submission_url = download_anchor['href']
                 data = {
-                    "moodle_student_id":moodle_student_id,
+                    "moodle_student_id": moodle_student_id,
                     "file_name": submission_name,
                     "url": submission_url
                 }
