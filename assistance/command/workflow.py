@@ -8,11 +8,21 @@ from os.path import join as p_join
 from types import SimpleNamespace
 from zipfile import BadZipFile
 
+import numpy as np
+
 from assistance.command.info import select_student_by_name
 from data.data import Student
 from mail.mail_out import EMailSender
 from util.console import single_choice
 from util.feedback import FeedbackPolisher
+
+
+def is_number(s):
+    try:
+        int(s)
+        return True
+    except ValueError:
+        return False
 
 
 class WorkflowDownloadCommand:
@@ -47,11 +57,8 @@ class WorkflowDownloadCommand:
         return "No help available."
 
     def __call__(self, *args):
-        try:
-            exercise_number = int(args[0])
-            self._function(self._moodle, exercise_number, self.printer)
-        except ValueError:
-            self.printer.error(f"Exercise number must be an integer, not '{args[0]}'")
+        exercise_number = args[0]
+        self._function(self._moodle, exercise_number, self.printer)
 
 
 class WorkflowUnzipCommand:
@@ -88,79 +95,78 @@ class WorkflowUnzipCommand:
         return "No help available."
 
     def __call__(self, *args):
-        try:
-            exercise_number = int(args[0])
-            raw_folder = self._storage.get_raw_folder(exercise_number)
-            preprocessed_folder = self._storage.get_preprocessed_folder(exercise_number)
+        exercise_number = args[0]
+        raw_folder = self._storage.get_raw_folder(exercise_number)
+        preprocessed_folder = self._storage.get_preprocessed_folder(exercise_number)
 
-            for file in os.listdir(raw_folder):
-                if file.endswith((".zip", ".tar.gz", ".tar", ".7z")):
-                    if file.endswith(".tar.gz"):
-                        extension = ".tar.gz"
-                        file_name = file[:len(extension)]
-                    else:
-                        file_name, extension = os.path.splitext(file)
+        for file in os.listdir(raw_folder):
+            if file.endswith((".zip", ".tar.gz", ".tar", ".7z")):
+                if file.endswith(".tar.gz"):
+                    extension = ".tar.gz"
+                    file_name = file[:len(extension)]
+                else:
+                    file_name, extension = os.path.splitext(file)
+
+                try:
+                    source_path = os.path.join(raw_folder, file)
+                    normalized_name, problems = self._normalize_file_name(file_name, exercise_number)
+                    target_path = os.path.join(preprocessed_folder, normalized_name)
+
+                    if not extension.endswith("zip"):
+                        problems.append(f"Minor: Wrong archive format, please use '.zip' instead of '{extension}'.")
+
+                    self.printer.inform(f"Unpacking {file} ... ", end="")
+                    if len(problems) > 0:
+                        self.printer.inform()
+                        self.printer.warning("While normalizing name there were some problems:")
+                        self.printer.indent()
+                        for problem in problems:
+                            self.printer.warning("- " + problem)
+                        self.printer.outdent()
 
                     try:
-                        source_path = os.path.join(raw_folder, file)
-                        normalized_name, problems = self._normalize_file_name(file_name, exercise_number)
-                        target_path = os.path.join(preprocessed_folder, normalized_name)
+                        shutil.unpack_archive(source_path, target_path)
+                    except (BadZipFile, NotImplementedError) as e:
+                        self.printer.warning("")
+                        self.printer.warning(f"Detected bad zip file: {e}")
+                        self.printer.warning(f"Trying different archive types ...")
+                        with self.printer:
+                            problem = None
+                            for type in ("7z", "tar", "gztar", "bztar", "xztar"):
+                                try:
+                                    shutil.unpack_archive(source_path, target_path, format=type)
+                                    problem = f"Wrong file extension provided - this file was actually a {type}!"
+                                    break
+                                except:
+                                    self.printer.warning(f"... {type} failed!")
 
-                        if not extension.endswith("zip"):
-                            problems.append(f"Minor: Wrong archive format, please use '.zip' instead of '{extension}'.")
+                        if problem is None:
+                            self.printer.error(f"Fatal error: {file} could not be unpacked!")
+                            self.printer.error("[ERR]")
+                            continue
+                        else:
+                            problems.append(problem)
 
-                        self.printer.inform(f"Unpacking {file} ... ", end="")
-                        if len(problems) > 0:
-                            self.printer.inform()
-                            self.printer.warning("While normalizing name there were some problems:")
-                            self.printer.indent()
-                            for problem in problems:
-                                self.printer.warning("- " + problem)
-                            self.printer.outdent()
+                    self.printer.confirm("[OK]")
 
-                        try:
-                            shutil.unpack_archive(source_path, target_path)
-                        except BadZipFile as e:
-                            self.printer.warning("")
-                            self.printer.warning(f"Detected bad zip file: {e}")
-                            self.printer.warning(f"Trying different archive types ...")
-                            with self.printer:
-                                problem = None
-                                for type in ("7z", "tar", "gztar", "bztar", "xztar"):
-                                    try:
-                                        shutil.unpack_archive(source_path, target_path, format=type)
-                                        problem = f"Wrong file extension provided - this file was actually a {type}!"
-                                        break
-                                    except:
-                                        self.printer.warning(f"... {type} failed!")
+                    with open(os.path.join(target_path, "submission_meta.json"), 'w', encoding='utf-8') as fp:
+                        data = {
+                            "original_name": file,
+                            "problems": problems
+                        }
+                        json_save(data, fp)
 
-                            if problem is None:
-                                self.printer.error(f"Fatal error: {file} could not be unpacked!")
-                                self.printer.error("[ERR]")
-                                continue
-                            else:
-                                problems.append(problem)
+                except shutil.ReadError:
+                    self.printer.error(f"Not supported archive-format: '{extension}'")
 
-                        self.printer.confirm("[OK]")
-
-                        with open(os.path.join(target_path, "submission_meta.json"), 'w', encoding='utf-8') as fp:
-                            data = {
-                                "original_name": file,
-                                "problems": problems
-                            }
-                            json_save(data, fp)
-
-                    except shutil.ReadError:
-                        self.printer.error(f"Not supported archive-format: '{extension}'")
-
-                    self.printer.inform("─" * 100)
-
-        except ValueError:
-            self.printer.error(f"Exercise number must be an integer, not '{args[0]}'")
+                self.printer.inform("─" * 100)
 
     def _normalize_file_name(self, file_name, exercise_number):
         problems = list()
-        correct_file_name_end = f'_ex{exercise_number:02d}'
+        try:
+            correct_file_name_end = f'_ex{exercise_number:02d}'
+        except ValueError:
+            correct_file_name_end = f'_ex{exercise_number}'
 
         file_name = self._suffix_check(
             exercise_number,
@@ -194,7 +200,7 @@ class WorkflowUnzipCommand:
 
     def _suffix_check(self, exercise_number, file_name, problems, correct_file_name_end):
         self.printer.inform("Checking file name suffix.")
-        if file_name.endswith(f"-ex{exercise_number:02d}") or file_name.endswith(f"-ex{exercise_number:}"):
+        if file_name.endswith(f"-ex{exercise_number:}") or (is_number(exercise_number) and file_name.endswith(f"-ex{exercise_number:02d}")):
             problems.append(f"Used '-' instead of '_' to mark end of filename. Please use '{correct_file_name_end}'")
             file_name = file_name.replace(f'-ex{exercise_number:02d}', correct_file_name_end) \
                 .replace(f'-ex{exercise_number:}', correct_file_name_end)
@@ -203,9 +209,9 @@ class WorkflowUnzipCommand:
             problems.append(f"The exercise number should be formatted with two digits.")
             file_name = file_name.replace(f'_ex{exercise_number:}', correct_file_name_end)
 
-        if not (file_name.endswith(f"_ex{exercise_number:02d}")):
+        if not (file_name.endswith(f"_ex{exercise_number}")):
             problems.append(f"Filename does not end with required '{correct_file_name_end}'.")
-            file_name += f"_ex{exercise_number:02d}"
+            file_name += f"_ex{exercise_number}"
 
         return file_name
 
@@ -385,7 +391,7 @@ class WorkflowPrepareCommand:
 
     def __call__(self, *args):
         try:
-            exercise_number = int(args[0])
+            exercise_number = args[0]
 
             preprocessed_folder = self._storage.get_preprocessed_folder(exercise_number)
             working_folder = self._storage.get_working_folder(exercise_number)
@@ -449,7 +455,7 @@ class WorkflowConsolidate:
         return "No help available."
 
     def __call__(self, *args):
-        exercise_number = int(args[0])
+        exercise_number = args[0]
         working_folder = self._storage.get_working_folder(exercise_number)
         finished_folder = self._storage.get_finished_folder(exercise_number)
 
@@ -500,7 +506,7 @@ class WorkflowUpload:
         return "No help available."
 
     def __call__(self, *args):
-        exercise_number = int(args[0])
+        exercise_number = args[0]
         finished_folder = self._storage.get_finished_folder(exercise_number)
         meta_file_name = "meta.json"
 
@@ -566,14 +572,14 @@ class WorkflowSendMail:
 
     def _parse_arguments(self, args):
         if len(args) == 1:
-            exercise_number = int(args[0])
+            exercise_number = args[0]
             debug = False
         else:
             if args[0].lower() == '--debug':
                 debug = True
-                exercise_number = int(args[1])
+                exercise_number = args[1]
             else:
-                exercise_number = int(args[0])
+                exercise_number = args[0]
                 debug = args[1].lower() == '--debug'
 
                 if not debug:
@@ -582,7 +588,8 @@ class WorkflowSendMail:
         return exercise_number, debug
 
     def __call__(self, *args):
-        exercise_number, debug = self._parse_arguments(args)
+        exercise_number, debug = self. \
+            _parse_arguments(args)
         if debug:
             self.printer.confirm("Running in debug mode.")
 
@@ -618,15 +625,117 @@ class WorkflowSendMail:
                     student_names = ', '.join([student.muesli_name for student in students])
                     self.printer.inform(f"Sending feedback to {student_names} ... ", end='')
                     try:
-                        sender.send_feedback(
-                            students,
-                            message,
-                            feedback_path,
-                            self._storage.muesli_data.exercise_prefix,
-                            exercise_number,
-                            debug=debug
-                        )
+                        sender.send_mail(students, message, f'[IFML-20] Feedback zu {self._storage.muesli_data.exercise_prefix} {exercise_number}', feedback_path, debug=debug)
                         self.printer.confirm("[Ok]")
                     except BaseException as e:
                         self.printer.error(f"[Err] - {e}")
 
+
+class WorkflowSendCrossTask:
+    def __init__(self, printer, storage):
+        self.printer = printer
+        self._storage = storage
+
+        self._name = "workflow.send_cross_task"
+        self._aliases = ("w.cross",)
+        self._min_arg_count = 1
+        self._max_arg_count = 2
+
+    @property
+    def name(self):
+        return self._name
+
+    @property
+    def aliases(self):
+        return self._aliases
+
+    @property
+    def min_arg_count(self):
+        return self._min_arg_count
+
+    @property
+    def max_arg_count(self):
+        return self._max_arg_count
+
+    @property
+    def help(self):
+        return "No help available."
+
+    def _parse_arguments(self, args):
+        if len(args) == 1:
+            exercise_number = args[0]
+            debug = False
+        else:
+            if args[0].lower() == '--debug':
+                debug = True
+                exercise_number = args[1]
+            else:
+                exercise_number = args[0]
+                debug = args[1].lower() == '--debug'
+
+                if not debug:
+                    raise ValueError(f'Unexpected flag {args[1]}')
+
+        return exercise_number, debug
+
+    def __call__(self, *args):
+        exercise_number, debug = self. \
+            _parse_arguments(args)
+        if debug:
+            self.printer.confirm("Running in debug mode.")
+        raw_folder = self._storage.get_raw_folder(exercise_number)
+
+        assignment_file = p_join(self._storage.get_exercise_folder(exercise_number), "cross-assignments.json")
+
+        assert not os.path.isfile(assignment_file), "You already sent cross-feedback tasks to people"
+
+        # Collect all submission files and corresponding uploader
+        submissions = []
+        with open(p_join(raw_folder, "meta.json")) as file:
+            submission_list = j_load(file)
+            for submission in submission_list:
+                sub_info = SimpleNamespace(**submission)
+                student = self._storage.get_student_by_moodle_id(sub_info.moodle_student_id)
+                submissions.append((student, sub_info.file_name))
+
+        # Find a permutation without self-assignment
+        while True:
+            new_order = np.random.permutation(len(submissions))
+            if np.all(new_order != np.arange(len(submissions))):
+                break
+
+        with open(assignment_file, "w") as file:
+            data = []
+            for submission_idx, (assigned_to_student, _) in zip(new_order, submissions):
+                creator_student, assigned_file = submissions[submission_idx]
+                data.append({
+                    "submission": assigned_file,
+                    "submission_by_muesli_student_id": creator_student.muesli_student_id,
+                    "assigned_to_muesli_student_id": assigned_to_student.muesli_student_id,
+                })
+            json_save(data, file)
+
+        with EMailSender(self._storage.email_account, self._storage.my_name) as sender:
+            for submission_idx, (student, _) in zip(new_order, submissions):
+                creator_student, assigned_file = submissions[submission_idx]
+                message = f"""Dear {student.moodle_name},
+
+please provide cross-feedback to the appended submission by another student group.
+For instructions, check the current Exercise Sheet.
+Remember that you have to give cross-feedback at least four times over the semester.
+
+Have an awesome day!
+{self._storage.my_name}"""
+
+                self.printer.inform(f"Sending cross-feedback task to {student.moodle_name} ... ", end='')
+
+                tmp_path = p_join(self._storage.get_exercise_folder(exercise_number), "cross-feedback-task.zip")
+                try:
+                    assigned_path = p_join(raw_folder, assigned_file)
+                    shutil.copy(assigned_path, tmp_path)
+                    sender.send_mail([student], message, f'[Fundamentals of Machine Learning] Your Cross-Feedback Task {self._storage.muesli_data.exercise_prefix} {exercise_number}', tmp_path, debug=debug)
+                    self.printer.confirm("[Ok]")
+                except BaseException as e:
+                    self.printer.error(f"[Err] - {e}")
+                finally:
+                    os.unlink(tmp_path)
