@@ -620,17 +620,18 @@ class InteractiveDataStorage:
         lines.append('┌' + '─' * 98 + '┐')
         lines.append(f'│{template_data.title:^98}│')
         lines.append('└' + '─' * 98 + '┘')
-        lines.append(f'Abgegeben als: {submission_data.original_name}')
+        lines.append(f'Handed in as: {submission_data.original_name}')
         lines.append('')
 
         if self.muesli_data.feedback.show_problems:
             if len(submission_data.problems) > 0:
-                lines.append("Mit der Namensgebung der Datei gab es Probleme:")
+                lines.append("The following issues occured with the name of the file:")
                 for problem in submission_data.problems:
                     lines.append("  ■ " + problem)
+                lines.append("Please make sure to correct the issues for the next sheet.")
                 lines.append("")
             else:
-                lines.append("Die Benennung der Abgabedatei war korrekt.")
+                lines.append("Great, thanks for naming the file correctly.")
                 lines.append("")
 
         for task_name, max_credits in template_data.max_credits:
