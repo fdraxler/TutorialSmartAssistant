@@ -192,6 +192,9 @@ def single_choice(title, options, printer):
             if answer < 0:
                 with printer:
                     printer.warning("Only positive indices are allowed. Try again or type 'cancel'.")
+            elif answer >= len(options):
+                with printer:
+                    printer.warning(f"Only answers < {len(options)} are allowed. Try again or type 'cancel'.")
             else:
                 break
         except ValueError:

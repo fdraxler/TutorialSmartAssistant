@@ -4,7 +4,7 @@ from util.console import string_table
 
 class HelpCommand(Command):
     def __init__(self, printer, register):
-        super().__init__(printer, "help", ("(?",), 0, 1)
+        super().__init__(printer, "help", ("?",), 0, 1)
         self._register = register
 
     def __call__(self, *args):

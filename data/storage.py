@@ -434,11 +434,11 @@ class InteractiveDataStorage:
     def other_tutorials(self):
         return [self.tutorials[tid] for tid in self.other_tutorial_ids]
 
-    def export_student(self, student):
+    def ignore_student(self, student):
         self.exported_students.append(student.muesli_student_id)
         self.physical_storage.save_exchanged_students(self.exported_students, 'exported')
 
-    def import_student(self, student):
+    def include_student(self, student):
         self.imported_students.append(student.muesli_student_id)
         self.physical_storage.save_exchanged_students(self.imported_students, 'imported')
 
@@ -527,7 +527,12 @@ class InteractiveDataStorage:
         )
         ensure_folder_exists(folder)
         for submission in submissions:
-            with open(os.path.join(folder, submission.file_name), 'wb') as fp:
+            target_filename = os.path.join(folder, submission.file_name)
+            if os.path.isfile(target_filename):
+                printer.warning(f"Target path {submission.file_name} exists!")
+                if printer.ask("Continue? ([y]/n)") == "n":
+                    break
+            with open(target_filename, 'wb') as fp:
                 try:
                     printer.inform(f"Downloading submission of {my_students[submission.moodle_student_id]} ... ",
                                    end='')

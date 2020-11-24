@@ -123,7 +123,7 @@ Example usage:
             self.printer.inform(line)
 
 
-def select_student_by_name(value, storage, printer, action, mode='all', too_much_limit=11):
+def select_student_by_name(value, storage, printer, action=None, mode='all', too_much_limit=11):
     value = normalize_string(value)
     possible_students = storage.get_students_by_name(value, mode=mode)
     student = None
@@ -151,7 +151,7 @@ def select_student_by_name(value, storage, printer, action, mode='all', too_much
 
     if student is None:
         printer.warning("Canceled")
-    else:
+    elif action is not None:
         action(student)
 
     return student
