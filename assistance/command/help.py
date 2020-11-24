@@ -1,35 +1,11 @@
+from assistance.command import Command
 from util.console import string_table
 
 
-class HelpCommand:
+class HelpCommand(Command):
     def __init__(self, printer, register):
-        self.printer = printer
+        super().__init__(printer, "help", ("(?",), 0, 1)
         self._register = register
-
-        self._name = "help"
-        self._aliases = ("?",)
-        self._min_arg_count = 0
-        self._max_arg_count = 1
-
-    @property
-    def name(self):
-        return self._name
-
-    @property
-    def aliases(self):
-        return self._aliases
-
-    @property
-    def min_arg_count(self):
-        return self._min_arg_count
-
-    @property
-    def max_arg_count(self):
-        return self._max_arg_count
-
-    @property
-    def help(self):
-        return "No help available."
 
     def __call__(self, *args):
         if len(args) == 0:

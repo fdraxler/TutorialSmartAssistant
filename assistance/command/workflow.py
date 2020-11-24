@@ -10,9 +10,13 @@ from zipfile import BadZipFile
 
 import numpy as np
 
+from assistance.command import Command
 from assistance.command.info import select_student_by_name
 from data.data import Student
+from data.storage import InteractiveDataStorage
 from mail.mail_out import EMailSender
+from moodle.api import MoodleSession
+from muesli.api import MuesliSession
 from util.console import single_choice
 from util.feedback import FeedbackPolisher
 
@@ -25,74 +29,24 @@ def is_number(s):
         return False
 
 
-class WorkflowDownloadCommand:
-    def __init__(self, printer, function, moodle):
-        self.printer = printer
+class WorkflowDownloadCommand(Command):
+    def __init__(self, printer, function: callable, moodle: MoodleSession):
+        super().__init__(printer, "workflow.download", ("w.down",), 1, 1)
         self._function = function
         self._moodle = moodle
-
-        self._name = "workflow.download"
-        self._aliases = ("w.down",)
-        self._min_arg_count = 1
-        self._max_arg_count = 1
-
-    @property
-    def name(self):
-        return self._name
-
-    @property
-    def aliases(self):
-        return self._aliases
-
-    @property
-    def min_arg_count(self):
-        return self._min_arg_count
-
-    @property
-    def max_arg_count(self):
-        return self._max_arg_count
-
-    @property
-    def help(self):
-        return "No help available."
 
     def __call__(self, *args):
         exercise_number = args[0]
         self._function(self._moodle, exercise_number, self.printer)
 
 
-class WorkflowUnzipCommand:
+class WorkflowUnzipCommand(Command):
     def __init__(self, printer, storage):
-        self.printer = printer
+        super().__init__(printer, "workflow.unzip", ("w.uz",), 1, 1)
         self._storage = storage
 
         from py7zr import unpack_7zarchive
         shutil.register_unpack_format('7zip', ['.7z'], unpack_7zarchive)
-
-        self._name = "workflow.unzip"
-        self._aliases = ("w.uz",)
-        self._min_arg_count = 1
-        self._max_arg_count = 1
-
-    @property
-    def name(self):
-        return self._name
-
-    @property
-    def aliases(self):
-        return self._aliases
-
-    @property
-    def min_arg_count(self):
-        return self._min_arg_count
-
-    @property
-    def max_arg_count(self):
-        return self._max_arg_count
-
-    @property
-    def help(self):
-        return "No help available."
 
     def __call__(self, *args):
         exercise_number = args[0]
@@ -358,36 +312,11 @@ class WorkflowUnzipCommand:
             return result
 
 
-class WorkflowPrepareCommand:
+class WorkflowPrepareCommand(Command):
     def __init__(self, printer, storage, muesli):
-        self.printer = printer
+        super().__init__(printer, "workflow.prepare", ("w.prep",), 1, 1)
         self._storage = storage
         self._muesli = muesli
-
-        self._name = "workflow.prepare"
-        self._aliases = ("w.prep",)
-        self._min_arg_count = 1
-        self._max_arg_count = 1
-
-    @property
-    def name(self):
-        return self._name
-
-    @property
-    def aliases(self):
-        return self._aliases
-
-    @property
-    def min_arg_count(self):
-        return self._min_arg_count
-
-    @property
-    def max_arg_count(self):
-        return self._max_arg_count
-
-    @property
-    def help(self):
-        return "No help available."
 
     def __call__(self, *args):
         try:
@@ -424,35 +353,10 @@ class WorkflowPrepareCommand:
             self.printer.error(f"Exercise number must be an integer, not '{args[0]}'")
 
 
-class WorkflowConsolidate:
+class WorkflowConsolidate(Command):
     def __init__(self, printer, storage):
-        self.printer = printer
+        super().__init__(printer, "workflow.consolidate", ("w.cons",), 1, 1)
         self._storage = storage
-
-        self._name = "workflow.consolidate"
-        self._aliases = ("w.cons",)
-        self._min_arg_count = 1
-        self._max_arg_count = 1
-
-    @property
-    def name(self):
-        return self._name
-
-    @property
-    def aliases(self):
-        return self._aliases
-
-    @property
-    def min_arg_count(self):
-        return self._min_arg_count
-
-    @property
-    def max_arg_count(self):
-        return self._max_arg_count
-
-    @property
-    def help(self):
-        return "No help available."
 
     def __call__(self, *args):
         exercise_number = args[0]
@@ -474,36 +378,11 @@ class WorkflowConsolidate:
             self.printer.confirm("[Ok]")
 
 
-class WorkflowUpload:
-    def __init__(self, printer, storage, muesli):
-        self.printer = printer
+class WorkflowUpload(Command):
+    def __init__(self, printer, storage: InteractiveDataStorage, muesli: MuesliSession):
+        super().__init__(printer, "workflow.upload", ("w.up",), 1, 1)
         self._storage = storage
         self._muesli = muesli
-
-        self._name = "workflow.upload"
-        self._aliases = ("w.up",)
-        self._min_arg_count = 1
-        self._max_arg_count = 1
-
-    @property
-    def name(self):
-        return self._name
-
-    @property
-    def aliases(self):
-        return self._aliases
-
-    @property
-    def min_arg_count(self):
-        return self._min_arg_count
-
-    @property
-    def max_arg_count(self):
-        return self._max_arg_count
-
-    @property
-    def help(self):
-        return "No help available."
 
     def __call__(self, *args):
         exercise_number = args[0]
@@ -540,35 +419,10 @@ class WorkflowUpload:
                 self.printer.error("Please check your connection state.")
 
 
-class WorkflowSendMail:
-    def __init__(self, printer, storage):
-        self.printer = printer
+class WorkflowSendMail(Command):
+    def __init__(self, printer, storage: InteractiveDataStorage):
+        super().__init__(printer, "workflow.send_feedback", ("w.send",), 1, 2)
         self._storage = storage
-
-        self._name = "workflow.send_feedback"
-        self._aliases = ("w.send",)
-        self._min_arg_count = 1
-        self._max_arg_count = 2
-
-    @property
-    def name(self):
-        return self._name
-
-    @property
-    def aliases(self):
-        return self._aliases
-
-    @property
-    def min_arg_count(self):
-        return self._min_arg_count
-
-    @property
-    def max_arg_count(self):
-        return self._max_arg_count
-
-    @property
-    def help(self):
-        return "No help available."
 
     def _parse_arguments(self, args):
         if len(args) == 1:
@@ -631,35 +485,10 @@ class WorkflowSendMail:
                         self.printer.error(f"[Err] - {e}")
 
 
-class WorkflowSendCrossTask:
-    def __init__(self, printer, storage):
-        self.printer = printer
+class WorkflowSendCrossTask(Command):
+    def __init__(self, printer, storage: InteractiveDataStorage):
+        super().__init__(printer, "workflow.send_cross_task", ("w.cross",), 1, 2)
         self._storage = storage
-
-        self._name = "workflow.send_cross_task"
-        self._aliases = ("w.cross",)
-        self._min_arg_count = 1
-        self._max_arg_count = 2
-
-    @property
-    def name(self):
-        return self._name
-
-    @property
-    def aliases(self):
-        return self._aliases
-
-    @property
-    def min_arg_count(self):
-        return self._min_arg_count
-
-    @property
-    def max_arg_count(self):
-        return self._max_arg_count
-
-    @property
-    def help(self):
-        return "No help available."
 
     def _parse_arguments(self, args):
         if len(args) == 1:
@@ -725,7 +554,8 @@ For instructions, check the current Exercise Sheet.
 Remember that you have to give cross-feedback at least four times over the semester.
 
 Have an awesome day!
-{self._storage.my_name}"""
+{self._storage.my_name}
+"""
 
                 self.printer.inform(f"Sending cross-feedback task to {student.moodle_name} ... ", end='')
 

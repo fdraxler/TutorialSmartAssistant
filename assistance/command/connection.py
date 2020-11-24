@@ -1,37 +1,13 @@
+from assistance.command import Command
 from moodle.api import MoodleSession
 from muesli.api import MuesliSession
 
 
-class ConnectionCommand:
-    def __init__(self, printer, moodle, muesli):
-        self.printer = printer
-        self._moodle: MoodleSession = moodle
-        self._muesli: MuesliSession = muesli
-
-        self._name = "connection"
-        self._aliases = ("conn",)
-        self._min_arg_count = 0
-        self._max_arg_count = 1
-
-    @property
-    def name(self):
-        return self._name
-
-    @property
-    def aliases(self):
-        return self._aliases
-
-    @property
-    def min_arg_count(self):
-        return self._min_arg_count
-
-    @property
-    def max_arg_count(self):
-        return self._max_arg_count
-
-    @property
-    def help(self):
-        return "No help available."
+class ConnectionCommand(Command):
+    def __init__(self, printer, moodle: MoodleSession, muesli: MuesliSession):
+        super().__init__(printer, "connection", ("conn",), 0, 1)
+        self._moodle = moodle
+        self._muesli = muesli
 
     def __call__(self, *args):
         if len(args) == 0:

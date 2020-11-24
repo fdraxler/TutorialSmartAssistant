@@ -1,36 +1,14 @@
+from assistance.command import Command
 from assistance.command.info import select_student_by_name
+from data.storage import InteractiveDataStorage
+from muesli.api import MuesliSession
 
 
-class PresentCommand:
-    def __init__(self, printer, storage, muesli):
-        self.printer = printer
+class PresentCommand(Command):
+    def __init__(self, printer, storage: InteractiveDataStorage, muesli: MuesliSession):
+        super().__init__(printer, "presented", ("pres", "[x]"), 1, 1)
         self._storage = storage
         self._muesli = muesli
-
-        self._name = "presented"
-        self._aliases = ("pres", "[x]")
-        self._min_arg_count = 1
-        self._max_arg_count = 1
-
-    @property
-    def name(self):
-        return self._name
-
-    @property
-    def aliases(self):
-        return self._aliases
-
-    @property
-    def min_arg_count(self):
-        return self._min_arg_count
-
-    @property
-    def max_arg_count(self):
-        return self._max_arg_count
-
-    @property
-    def help(self):
-        return "No help available."
 
     def __call__(self, *args):
         if not self._storage.muesli_data.presentation.supports_presentations:

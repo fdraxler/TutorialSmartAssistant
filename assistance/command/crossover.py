@@ -1,36 +1,12 @@
+from assistance.command import Command
 from assistance.command.info import select_student_by_name
 from data.storage import InteractiveDataStorage
 
 
-class ImportCommand:
+class ImportCommand(Command):
     def __init__(self, printer, storage: InteractiveDataStorage):
-        self.printer = printer
+        super().__init__(printer, "import", ("<-",), 1, 1)
         self._storage = storage
-
-        self._name = "import"
-        self._aliases = ("<-",)
-        self._min_arg_count = 1
-        self._max_arg_count = 1
-
-    @property
-    def name(self):
-        return self._name
-
-    @property
-    def aliases(self):
-        return self._aliases
-
-    @property
-    def min_arg_count(self):
-        return self._min_arg_count
-
-    @property
-    def max_arg_count(self):
-        return self._max_arg_count
-
-    @property
-    def help(self):
-        return "No help available."
 
     def __call__(self, *args, **kwargs):
         value = args[0]
@@ -48,35 +24,10 @@ class ImportCommand:
             self.printer.inform(f"Workflow commands will also consider this student now as your own.")
 
 
-class ExportCommand:
+class ExportCommand(Command):
     def __init__(self, printer, storage: InteractiveDataStorage):
-        self.printer = printer
+        super().__init__(printer, "export", ("->",), 1, 1)
         self._storage = storage
-
-        self._name = "export"
-        self._aliases = ("->",)
-        self._min_arg_count = 1
-        self._max_arg_count = 1
-
-    @property
-    def name(self):
-        return self._name
-
-    @property
-    def aliases(self):
-        return self._aliases
-
-    @property
-    def min_arg_count(self):
-        return self._min_arg_count
-
-    @property
-    def max_arg_count(self):
-        return self._max_arg_count
-
-    @property
-    def help(self):
-        return "No help available."
 
     def __call__(self, *args, **kwargs):
         value = args[0]

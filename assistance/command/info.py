@@ -1,3 +1,4 @@
+from assistance.command import Command
 from assistance.commands import normalize_string
 from data.data import Student
 from data.storage import InteractiveDataStorage
@@ -5,44 +6,20 @@ from util.collection import group
 from util.console import single_choice, print_header, string_card, align_horizontal, string_framed_line, align_vertical
 
 
-class InfoCommand:
+class InfoCommand(Command):
     def __init__(self, printer, storage: InteractiveDataStorage):
-        self.printer = printer
+        super().__init__(printer, "information", ("info",), 1, 1, help="""Shows information about students, tutorials, tutors and exercises.
+Aliases:
+  ■ info
+Required Named Arguments (one of):
+  ■ --student , -s: (partial) name of student [type: str]
+  ■ --tutor   , -t: (partial) name of tutor [type: str]
+  ■ --Tutorial, -T: id of tutorial in MÜSLI [type: int]
+  ■ --exercise, -e: number of the exercise [type: int]
+Example usage:
+  info -t="Christopher Schuster"
+""")
         self._storage = storage
-
-        self._name = "information"
-        self._aliases = ("info",)
-        self._min_arg_count = 1
-        self._max_arg_count = 1
-
-    @property
-    def name(self):
-        return self._name
-
-    @property
-    def aliases(self):
-        return self._aliases
-
-    @property
-    def min_arg_count(self):
-        return self._min_arg_count
-
-    @property
-    def max_arg_count(self):
-        return self._max_arg_count
-
-    @property
-    def help(self):
-        return "Shows information about students, tutorials, tutors and exercises.\n" \
-               "Aliases:\n" \
-               "  ■ info\n" \
-               "Required Named Arguments (one of):\n" \
-               "  ■ --student , -s: (partial) name of student [type: str]\n" \
-               "  ■ --tutor   , -t: (partial) name of tutor [type: str]\n" \
-               "  ■ --Tutorial, -T: id of tutorial in MÜSLI [type: int]\n" \
-               "  ■ --exercise, -e: number of the exercise [type: int]\n" \
-               "Example usage:\n" \
-               '  info -t="Christopher Schuster"\n'
 
     def __call__(self, argument):
         parts = argument.split("=")
