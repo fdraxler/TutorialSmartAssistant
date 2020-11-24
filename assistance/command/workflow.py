@@ -50,30 +50,30 @@ class WorkflowUnzipCommand(Command):
                 else:
                     file_name, extension = os.path.splitext(file)
 
+                source_path = os.path.join(raw_folder, file)
+                name_parser = FileNameParser(self.printer, self._storage, file_name, exercise_number)
+                target_path = os.path.join(preprocessed_folder, name_parser.normalized_name)
+
+                if os.path.isdir(target_path):
+                    self.printer.warning(f"Target path {name_parser.normalized_name} exists!")
+                    if self.printer.ask("Continue? ([y]/n)") == "n":
+                        break
+
+                if not extension.endswith("zip"):
+                    name_parser.problems.append(f"Minor: Wrong archive format, please use '.zip' instead of '{extension}'.")
+
+                self.printer.inform("Found: " + ", ".join([student.muesli_name for student in name_parser.students]))
+                if len(name_parser.problems) > 0:
+                    self.printer.inform()
+                    self.printer.warning("While normalizing name there were some problems:")
+                    self.printer.indent()
+                    for problem in name_parser.problems:
+                        self.printer.warning("- " + problem)
+                    self.printer.outdent()
+                    if self.printer.ask("Continue? ([y]/n)") == "n":
+                        break
+
                 try:
-                    source_path = os.path.join(raw_folder, file)
-                    name_parser = FileNameParser(self.printer, self._storage, file_name, exercise_number)
-                    target_path = os.path.join(preprocessed_folder, name_parser.normalized_name)
-
-                    if os.path.isdir(target_path):
-                        self.printer.warning(f"Target path {name_parser.normalized_name} exists!")
-                        if self.printer.ask("Continue? ([y]/n)") == "n":
-                            break
-
-                    if not extension.endswith("zip"):
-                        name_parser.problems.append(f"Minor: Wrong archive format, please use '.zip' instead of '{extension}'.")
-
-                    self.printer.inform("Found: " + ", ".join([student.muesli_name for student in name_parser.students]))
-                    if len(name_parser.problems) > 0:
-                        self.printer.inform()
-                        self.printer.warning("While normalizing name there were some problems:")
-                        self.printer.indent()
-                        for problem in name_parser.problems:
-                            self.printer.warning("- " + problem)
-                        self.printer.outdent()
-                        if self.printer.ask("Continue? ([y]/n)") == "n":
-                            break
-
                     self.printer.inform(f"Unpacking {file} ... ", end="")
                     try:
                         shutil.unpack_archive(source_path, target_path)
@@ -98,25 +98,22 @@ class WorkflowUnzipCommand(Command):
                             self.printer.inform("Copied zip file to target.")
                             if self.printer.ask("Continue? ([y]/n)") == "n":
                                 break
-                            continue
                         else:
                             name_parser.problems.append(problem)
-
                     self.printer.confirm("[OK]")
-
-                    with open(os.path.join(target_path, "submission_meta.json"), 'w', encoding='utf-8') as fp:
-                        data = {
-                            "original_name": file,
-                            "problems": name_parser.problems,
-                            "muesli_student_ids": [student.muesli_student_id for student in name_parser.students]
-                        }
-                        json_save(data, fp)
-
                 except shutil.ReadError:
                     self.printer.error(f"Not supported archive-format: '{extension}'")
 
+                with open(os.path.join(target_path, "submission_meta.json"), 'w', encoding='utf-8') as fp:
+                    data = {
+                        "original_name": file,
+                        "problems": name_parser.problems,
+                        "muesli_student_ids": [student.muesli_student_id for student in name_parser.students]
+                    }
+                    json_save(data, fp)
+
                 self.printer.inform("─" * 100)
-            else:
+            elif file != "meta.json":
                 self.printer.error(f"File name is {file} -- no known compressed file!")
                 if self.printer.ask("Continue? ([y]/n)") == "n":
                     break

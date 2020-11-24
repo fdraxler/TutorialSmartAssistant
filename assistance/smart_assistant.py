@@ -1,7 +1,7 @@
 from traceback import format_exc
 
 from assistance.command.connection import ConnectionCommand
-from assistance.command.crossover import IncludeCommand, IgnoreCommand
+from assistance.command.crossover import ImportCommand, ExportCommand, AssignTutorsCommand
 from assistance.command.help import HelpCommand
 from assistance.command.info import InfoCommand
 from assistance.command.present import PresentCommand
@@ -40,8 +40,9 @@ class SmartAssistant:
         self._command_register.register_command(WorkflowSendMail(self._printer, self._storage))
         self._command_register.register_command(WorkflowSendCrossTask(self._printer, self._storage))
 
-        self._command_register.register_command(IncludeCommand(self._printer, self._storage))
-        self._command_register.register_command(IgnoreCommand(self._printer, self._storage))
+        self._command_register.register_command(ImportCommand(self._printer, self._storage))
+        self._command_register.register_command(ExportCommand(self._printer, self._storage))
+        self._command_register.register_command(AssignTutorsCommand(self._printer, self._storage))
         self._command_register.register_command(PresentCommand(self._printer, self._storage, self._muesli))
 
     def _initialize_connections(self):

@@ -434,11 +434,11 @@ class InteractiveDataStorage:
     def other_tutorials(self):
         return [self.tutorials[tid] for tid in self.other_tutorial_ids]
 
-    def ignore_student(self, student):
+    def export_student(self, student):
         self.exported_students.append(student.muesli_student_id)
         self.physical_storage.save_exchanged_students(self.exported_students, 'exported')
 
-    def include_student(self, student):
+    def import_student(self, student):
         self.imported_students.append(student.muesli_student_id)
         self.physical_storage.save_exchanged_students(self.imported_students, 'imported')
 
