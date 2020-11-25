@@ -86,7 +86,7 @@ class FeedbackPolisher:
 
     def _generate_salutation(self):
         self._salutation = list()
-        self._salutation.append("Dieses Feedback ist für:")
+        self._salutation.append("This feedback is for:")
         for student in self._students:
             self._salutation.append(f"• {student.muesli_name} ({student.muesli_mail})")
         max_length = max([len(_) for _ in self._salutation])
@@ -134,9 +134,9 @@ class FeedbackPolisher:
         footer = list()
         footer.append("\n")
         footer.append('═' * 100)
-        footer.append(f"Dieses Feedback wurde von {self._storage.my_name_alias} ({self._storage.my_name}) erstellt.")
-        footer.append(f"Fragen zur Korrektur könnt ihr gerne per Mail ({self._storage.muesli_account.email})")
-        footer.append(f"oder per Privatnachricht in Discord stellen.")
+        footer.append(f"This feedback was created by {self._storage.my_name_alias} ({self._storage.my_name}).")
+        footer.append(f"Please ask questions about the feedback to ({self._storage.muesli_account.email})")
+        footer.append(f"or on Discord via the private chat.")
 
         feedback = align_vertical(feedback, footer)
 
