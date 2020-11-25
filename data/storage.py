@@ -1,12 +1,11 @@
 import os
 import os.path
+import unicodedata
 from collections import defaultdict
 from json import load as j_load, dump as j_dump
 from os.path import join as p_join
 from time import sleep
 from types import SimpleNamespace
-
-import unicodedata
 
 from data.data import Student, Tutorial
 from data.student_matching import match_students, print_result_table
@@ -141,7 +140,6 @@ class PhysicalDataStorage:
                 result = presented_scores, "Loaded"
 
         return result
-
 
 
 class InteractiveDataStorage:
@@ -502,54 +500,6 @@ class InteractiveDataStorage:
 
     def get_all_tutorials_of_tutor(self, tutor):
         return [tutorial for tutorial in self.tutorials.values() if tutorial.tutor == tutor]
-
-    def download_submissions_of_my_students(self, moodle: MoodleSession, exercise_number, printer):
-        printer.inform('Connecting to Moodle and collecting data.')
-        printer.inform('This may take a few seconds.')
-        submissions = moodle.find_submissions(
-            self.moodle_data.course_id,
-            self.moodle_data.exercise_prefix,
-            exercise_number,
-            printer
-        )
-        printer.inform(f"Found a total of {len(submissions)} for '{self.moodle_data.exercise_prefix}{exercise_number}'")
-        my_students = self.my_students
-        my_students = {student.moodle_student_id: student for student in my_students}
-
-        submissions = [submission for submission in submissions if submission.moodle_student_id in my_students]
-        printer.inform(f"Found {len(submissions)} submissions for me")
-
-        folder = os.path.join(
-            self.storage_config.root,
-            self.storage_config.submission_root,
-            f'{self.storage_config.exercise_template}{exercise_number}',
-            self.storage_config.raw_folder
-        )
-        ensure_folder_exists(folder)
-        for submission in submissions:
-            target_filename = os.path.join(folder, submission.file_name)
-            if os.path.isfile(target_filename):
-                printer.warning(f"Target path {submission.file_name} exists!")
-                if printer.ask("Continue? ([y]/n)") == "n":
-                    break
-            with open(target_filename, 'wb') as fp:
-                try:
-                    printer.inform(f"Downloading submission of {my_students[submission.moodle_student_id]} ... ",
-                                   end='')
-                    moodle.download(submission.url, fp)
-                    printer.confirm('[Ok]')
-                except Exception as e:
-                    printer.error('[Err]')
-                    printer.error(str(e))
-
-        with open(os.path.join(folder, "meta.json"), 'w') as fp:
-            try:
-                printer.inform(f'Write meta data ... ', end='')
-                j_dump([s.__dict__ for s in submissions], fp, indent=4)
-                printer.confirm('[Ok]')
-            except Exception as e:
-                printer.error('[Err]')
-                printer.error(str(e))
 
     def get_exercise_folder(self, exercise_number):
         return os.path.join(

@@ -1,6 +1,7 @@
 import os
 import shutil
 from collections import defaultdict
+from json import dump
 from json import dump as json_save
 from json import load as j_load
 from os.path import join as p_join
@@ -10,7 +11,7 @@ from zipfile import BadZipFile
 import numpy as np
 
 from assistance.command import Command
-from data.storage import InteractiveDataStorage
+from data.storage import InteractiveDataStorage, ensure_folder_exists
 from mail.mail_out import EMailSender
 from moodle.api import MoodleSession
 from muesli.api import MuesliSession
@@ -19,14 +20,61 @@ from util.parse_names import FileNameParser
 
 
 class WorkflowDownloadCommand(Command):
-    def __init__(self, printer, function: callable, moodle: MoodleSession):
+    def __init__(self, printer, storage: InteractiveDataStorage, moodle: MoodleSession):
         super().__init__(printer, "workflow.download", ("w.down",), 1, 1)
-        self._function = function
+        self._storage = storage
         self._moodle = moodle
 
     def __call__(self, *args):
         exercise_number = args[0]
-        self._function(self._moodle, exercise_number, self.printer)
+
+        moodle_data = self._storage.moodle_data
+
+        self.printer.inform('Connecting to Moodle and collecting data.')
+        self.printer.inform('This may take a few seconds.')
+        submissions = self._moodle.find_submissions(
+            moodle_data.course_id,
+            moodle_data.exercise_prefix,
+            exercise_number,
+            self.printer
+        )
+        self.printer.inform(f"Found a total of {len(submissions)} for '{moodle_data.exercise_prefix}{exercise_number}'")
+
+        all_students = {student.moodle_student_id: student for student in self._storage.all_students}
+
+        submissions = [submission for submission in submissions if submission.moodle_student_id in all_students]
+        self.printer.inform(f"Found {len(submissions)} submissions")
+
+        folder = os.path.join(
+            self._storage.storage_config.root,
+            self._storage.storage_config.submission_root,
+            f'{self._storage.storage_config.exercise_template}{exercise_number}',
+            self._storage.storage_config.raw_folder
+        )
+        ensure_folder_exists(folder)
+        for submission in submissions:
+            target_filename = os.path.join(folder, submission.file_name)
+            if os.path.isfile(target_filename):
+                self.printer.warning(f"Target path {submission.file_name} exists!")
+                if self.printer.ask("Continue? ([y]/n)") == "n":
+                    break
+            with open(target_filename, 'wb') as fp:
+                try:
+                    self.printer.inform(f"Downloading submission of {all_students[submission.moodle_student_id]} ... ", end='')
+                    self._moodle.download(submission.url, fp)
+                    self.printer.confirm('[Ok]')
+                except Exception as e:
+                    self.printer.error('[Err]')
+                    self.printer.error(str(e))
+
+        with open(os.path.join(folder, "meta.json"), 'w') as fp:
+            try:
+                self.printer.inform(f'Write meta data ... ', end='')
+                dump([s.__dict__ for s in submissions], fp, indent=4)
+                self.printer.confirm('[Ok]')
+            except Exception as e:
+                self.printer.error('[Err]')
+                self.printer.error(str(e))
 
 
 class WorkflowUnzipCommand(Command):
