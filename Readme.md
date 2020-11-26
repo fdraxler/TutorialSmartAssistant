@@ -34,6 +34,7 @@ Version used for Fundamentals of Machine Learning in winter 2020.
     1. Results are stored `cross-assignments.json`
     2. Assignments are sent via email by attaching the corresponding `.zip` file.
 3. Send the other tutors the `cross-assignments.json` file.
+4. When additional students get cross feedback assignments, add them to the file manually⁄ by searching the muesli ids and send the corrected version to the other tutors.
 
 
 ## TODOs
