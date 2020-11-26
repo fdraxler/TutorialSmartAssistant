@@ -31,7 +31,7 @@ class SmartAssistant:
         self._command_register.register_command(InfoCommand(self._printer, self._storage))
         self._command_register.register_command(ConnectionCommand(self._printer, self._moodle, self._muesli))
 
-        self._command_register.register_command(WorkflowDownloadCommand(self._printer, self._moodle))
+        self._command_register.register_command(WorkflowDownloadCommand(self._printer, self._storage, self._moodle))
         self._command_register.register_command(WorkflowUnzipCommand(self._printer, self._storage))
         self._command_register.register_command(WorkflowPrepareCommand(self._printer, self._storage, self._muesli))
         self._command_register.register_command(WorkflowConsolidate(self._printer, self._storage))

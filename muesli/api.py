@@ -212,16 +212,17 @@ class MuesliSession:
         table_row = table.find('tr', attrs={'id': f'row-{student.muesli_student_id}'})
         data = dict()
         rows = table.find_all('tr')
-        for row in rows[1:-5]:
+        for row in rows:
             columns = row.find_all('td')
             if len(columns) > 0:
                 input_score = columns[1].find('input')
-                name = input_score['name']
-                try:
-                    value = float(input_score['value'])
-                except KeyError:
-                    value = ''
-                data[name] = value
+                if input_score is not None:
+                    name = input_score['name']
+                    try:
+                        value = float(input_score['value'])
+                    except KeyError:
+                        value = ''
+                    data[name] = value
         input_points = table_row.find_all('td')[1].find('input', attrs={'class': 'points', 'type': 'text'})
 
         data['submit'] = 1

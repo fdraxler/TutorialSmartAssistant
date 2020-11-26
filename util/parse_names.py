@@ -91,23 +91,13 @@ class FileNameParser:
                     continue
 
             # Try to find student in my tutorial
-            student = select_student_by_name(student_name, self._storage, self._printer, self.students.append, mode='my')
+            student = select_student_by_name(student_name, self._storage, self._printer, mode='all')
             if student is None:
-                # Try to find student in other tutorials
-                self._printer.error(f"Some error happened processing '{name_part}'")
-                self._printer.error(f"Did not find a match for '{student_name}'")
-                self._printer.error("Increasing scope ... ")
-                student = select_student_by_name(student_name, self._storage, self._printer, mode='all')
-                if student is not None:
-                    self._printer.inform(f"Found the student - consider to include '{student_name}'")
-                    self.students.append(student)
-                else:
-                    student = self._manual_student_selection(student_name)
-
-                    if student is not None:
-                        self.students.append(student)
-                    else:
-                        self._printer.error("Manual correction failed!")
+                student = self._manual_student_selection(student_name)
+                if student is None:
+                    self._printer.error("Manual correction failed! Ignoring student.")
+            if student is not None:
+                self.students.append(student)
 
     def _manual_student_selection(self, student_name):
         self._printer.inform(f"No match found for '{student_name}' in extended scope - manual correction needed.")

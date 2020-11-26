@@ -5,6 +5,7 @@ from json import dump
 from json import dump as json_save
 from json import load as j_load
 from os.path import join as p_join
+from pathlib import Path
 from types import SimpleNamespace
 from zipfile import BadZipFile
 
@@ -168,44 +169,127 @@ class WorkflowUnzipCommand(Command):
 
 
 class WorkflowPrepareCommand(Command):
-    def __init__(self, printer, storage, muesli):
-        super().__init__(printer, "workflow.prepare", ("w.prep",), 1, 1)
+    def __init__(self, printer, storage: InteractiveDataStorage, muesli: MuesliSession):
+        super().__init__(printer, "workflow.prepare", ("w.prep",), 1, 2)
         self._storage = storage
         self._muesli = muesli
 
-    def __call__(self, *args):
-        try:
-            exercise_number = args[0]
+    def __call__(self, exercise_number, next_exercise_number=None):
+        if next_exercise_number is None:
+            self.printer.warning("You are omitting loading the feedback from the next submission")
+            if not self.printer.yes_no("Continue?"):
+                return
 
-            preprocessed_folder = self._storage.get_preprocessed_folder(exercise_number)
-            working_folder = self._storage.get_working_folder(exercise_number)
+        preprocessed_folder = Path(self._storage.get_preprocessed_folder(exercise_number))
+        working_folder = Path(self._storage.get_working_folder(exercise_number))
 
-            if not os.path.exists(preprocessed_folder):
-                self.printer.error(f"The data for exercise {exercise_number} was not preprocessed. "
-                                   f"Run workflow.unzip first.")
+        if not preprocessed_folder.is_dir():
+            self.printer.error(f"The data for exercise {exercise_number} was not preprocessed. Run workflow.unzip first.")
+            return
 
-            can_generate_feedback = False
-            if not self._storage.has_exercise_meta(exercise_number):
-                self.printer.inform("Meta data for exercise not found. Syncing from MÜSLI ... ", end='')
-                try:
-                    self._storage.update_exercise_meta(self._muesli, exercise_number)
-                    can_generate_feedback = True
-                    self.printer.confirm("[OK]")
-                except TypeError:
-                    self.printer.error("[Err]")
-                    self.printer.error("No credit stats found for this exercise.")
-            else:
-                can_generate_feedback = True
+        can_generate_feedback = self.load_muesli_data(exercise_number)
 
-            for directory in os.listdir(preprocessed_folder):
-                src_directory = os.path.join(preprocessed_folder, directory)
-                target_directory = os.path.join(working_folder, directory)
-                if not os.path.exists(target_directory):
+        if next_exercise_number is not None:
+            all_next_submissions = self.load_next_submissions(next_exercise_number)
+            cross_assignments = self.load_cross_assignments(exercise_number)
+        else:
+            all_next_submissions = {}
+            cross_assignments = []
+
+        my_student_muesli_ids = [student.muesli_student_id for student in self._storage.my_students]
+        for src_directory in preprocessed_folder.iterdir():
+            if src_directory.name.startswith("."):
+                continue
+            with open(src_directory / "submission_meta.json", "rb") as file:
+                submission_info = j_load(file)
+
+            submission_muesli_ids = submission_info["muesli_student_ids"]
+            any_own_student_detected = any(muesli_id in my_student_muesli_ids for muesli_id in submission_muesli_ids)
+
+            if any_own_student_detected:
+                target_directory = working_folder / src_directory.name
+                if not target_directory.is_dir():
                     shutil.copytree(src_directory, target_directory)
-                if can_generate_feedback and os.path.isdir(target_directory):
+                if can_generate_feedback and target_directory.is_dir():
                     self._storage.generate_feedback_template(exercise_number, target_directory, self.printer)
-        except ValueError:
-            self.printer.error(f"Exercise number must be an integer, not '{args[0]}'")
+
+                self.copy_own_feedback(submission_muesli_ids, all_next_submissions, target_directory)
+                self.copy_cross_feedback(cross_assignments, submission_muesli_ids, all_next_submissions, target_directory)
+
+    def copy_own_feedback(self, submission_muesli_ids, all_next_submissions, target_directory):
+        next_own_submissions = set()
+        for submission_muesli_id in submission_muesli_ids:
+            if submission_muesli_id in all_next_submissions:
+                next_own_submissions.add(all_next_submissions[submission_muesli_id])
+        for next_own_submission in next_own_submissions:
+            # Find files ending with -commented.X and copy them over
+            self_target = target_directory / f"Own feedback by {next_own_submission.name}"
+            if not self_target.is_dir():
+                self_target.mkdir()
+            self.copy_files(next_own_submission, self_target, "commented", "cross-commented")
+
+    def copy_cross_feedback(self, cross_assignments, submission_muesli_ids, all_next_submissions, target_directory):
+        next_cross_submissions = set()
+        for solution_by_muesli_id, was_assigned_to_muesli_id in cross_assignments:
+            if solution_by_muesli_id in submission_muesli_ids and was_assigned_to_muesli_id in all_next_submissions:
+                next_cross_submissions.add(all_next_submissions[was_assigned_to_muesli_id])
+        for next_cross_submission in next_cross_submissions:
+            # Find files ending with -cross-commented.X and copy them over
+            cross_target = target_directory / f"Cross by {next_cross_submission.name}"
+            if not cross_target.is_dir():
+                cross_target.mkdir()
+            self.copy_files(next_cross_submission, cross_target, "cross-commented")
+
+    def load_muesli_data(self, exercise_number):
+        can_generate_feedback = False
+        if not self._storage.has_exercise_meta(exercise_number):
+            self.printer.inform("Meta data for exercise not found. Syncing from MÜSLI ... ", end='')
+            try:
+                self._storage.update_exercise_meta(self._muesli, exercise_number)
+                can_generate_feedback = True
+                self.printer.confirm("[OK]")
+            except TypeError:
+                self.printer.error("[Err]")
+                self.printer.error("No credit stats found for this exercise.")
+        else:
+            can_generate_feedback = True
+        return can_generate_feedback
+
+    def load_cross_assignments(self, exercise_number):
+        assignment_file = Path(self._storage.get_exercise_folder(exercise_number)) / "cross-assignments.json"
+        assignments = []
+        with open(assignment_file, "r") as file:
+            data = j_load(file)
+            for assignment in data:
+                assignments.append((
+                    assignment["submission_by_muesli_student_id"],
+                    assignment["assigned_to_muesli_student_id"]
+                ))
+        return assignments
+
+    def load_next_submissions(self, next_exercise_number):
+        next_exercise_unpacked_folder = Path(self._storage.get_preprocessed_folder(next_exercise_number))
+        all_next_submissions = {}
+        for next_submission in next_exercise_unpacked_folder.iterdir():
+            next_meta = Path(next_submission / "submission_meta.json")
+            if next_meta.is_file():
+                with open(next_meta, "r") as file:
+                    for muesli_id in j_load(file)["muesli_student_ids"]:
+                        all_next_submissions[muesli_id] = next_submission
+        return all_next_submissions
+
+    def copy_files(self, from_path: Path, to_path: Path, ending_in: str, not_ending_in: str = None):
+        for entry in from_path.iterdir():
+            target_entry = to_path / entry.name
+            if entry.is_dir():
+                if not target_entry.is_dir():
+                    target_entry.mkdir()
+                self.copy_files(entry, target_entry, ending_in, not_ending_in)
+            else:
+                stripped_name, _ = os.path.splitext(entry.name)
+                if stripped_name.endswith(ending_in):
+                    if not_ending_in is None or not stripped_name.endswith(not_ending_in):
+                        shutil.copy(entry, target_entry)
 
 
 class WorkflowConsolidate(Command):
