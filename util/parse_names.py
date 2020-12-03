@@ -35,12 +35,37 @@ class FileNameParser:
             name_part = self._strip_suffix()
             self._identify_students(name_part)
         except NameParsingFailed:
-            self._identify_students_manually()
+            while True:
+                try:
+                    self._manual_all_students()
+                    break
+                except NameParsingFailed as e:
+                    if len(str(e)) > 0:
+                        self.problems.append(f"Oh no: {e}")
+                    if self._printer.yes_no("Do you want to skip this hand in?", default="n"):
+                        break
 
         if len(self.students) < 2:
             self.problems.append("Submission groups should consist at least of 2 members!")
         if 3 < len(self.students):
             self.problems.append("Submission groups should consist at most of 3 members!")
+
+    def ask_retry(self, question):
+        self._printer.inform("Type 'manual' to enter manual mode.")
+        answer = self._printer.ask(question)
+        if answer == "manual":
+            raise NameParsingFailed()
+        return answer
+
+    def yes_no_retry(self, question):
+        while True:
+            answer = self.ask_retry(f"{question} (y/n/manual)")
+            if answer == "manual":
+                raise NameParsingFailed()
+            elif answer in ["y", "n"]:
+                return answer == "y"
+            else:
+                self._printer.warning(f"Could not understand your answer: {answer}")
 
     @property
     def normalized_name(self):
@@ -71,7 +96,7 @@ class FileNameParser:
         return file_name[:-len(correct_file_name_end)]
 
     def _identify_students(self, name_part):
-        self._printer.inform(f"Finding students of '{name_part}'.")
+        self._printer.inform(f"Finding students in '{self._file_name}'.")
 
         student_names = []
         for student_name in name_part.split("_"):
@@ -86,32 +111,34 @@ class FileNameParser:
 
         for student_name in student_names:
             if any(char.isdigit() for char in student_name):
-                if self._printer.ask(f"Is '{student_name}' really a student name? (y/n)?") != 'y':
+                if self.ask_retry(f"Is '{student_name}' really a student name? (y/n)?") != 'y':
                     self._printer.inform("Skip")
                     continue
 
-            # Try to find student in my tutorial
+            # Try to find student
             student = select_student_by_name(student_name, self._storage, self._printer, mode='all')
             if student is None:
-                student = self._manual_student_selection(student_name)
+                student = self._manual_single_student(student_name)
                 if student is None:
                     self._printer.error("Manual correction failed! Ignoring student.")
             if student is not None:
                 self.students.append(student)
 
-    def _manual_student_selection(self, student_name):
-        self._printer.inform(f"No match found for '{student_name}' in extended scope - manual correction needed.")
-        student = self._select_student(mode='all')
+    def _manual_single_student(self, student_name):
+        problem = f"Could not identify student '{student_name}', manual correction needed."
+        self.problems.append(problem)
+        self._printer.warning(problem)
+        student = None
         while student is None:
-            self._printer.inform(f"No student like '{student_name}' found with entered name. Please try only a name part.")
-            student = self._select_student(mode='all')
-            if student is None and self._printer.ask("Do you want to try again? (y/n)") == 'n':
-                # todo raise
-                break
+            self._printer.inform(f"Please try a manual name for '{student_name}', e.g. parts of the name:")
+            student = self._find_student_by_input()
+            if student is None and not self.yes_no_retry("Did not find the student. Do you want to try again?"):
+                raise NameParsingFailed(f"Manual correction of name '{student_name}' did not succeed.")
 
         return student
 
-    def _identify_students_manually(self):
+    def _manual_all_students(self):
+        self.students = []
         problem = "Fatal: Wrong naming detected - manual correction needed."
         self.problems.append(problem)
         self._printer.error(problem)
@@ -121,21 +148,21 @@ class FileNameParser:
 
         names = self._printer.input(">: ")
         for name in names.split(','):
-            student = self._select_student(name=name)
+            student = self._find_student_by_input(name=name)
             if student is not None:
                 self.students.append(student)
             else:
                 while student is None:
                     self._printer.warning(f"Did not find a student with name '{name}'.")
                     self._printer.inform("Please try again or type 'cancel' to skip this name.")
-                    student = self._select_student()
+                    student = self._find_student_by_input()
                     if student == 'cancel':
                         break
 
                 if student != 'cancel':
                     self.students.append(student)
 
-    def _select_student(self, mode='my', name=None):
+    def _find_student_by_input(self, mode='all', name=None):
         if name is None:
             name = self._printer.input(">: ")
 
@@ -148,7 +175,7 @@ class FileNameParser:
             if len(possible_students) == 1:
                 return possible_students[0]
             elif len(possible_students) == 0:
-                self._printer.warning("No match found")
+                self._printer.warning(f"No match found for '{name}'")
                 return None
             else:
                 index = single_choice("Please select correct student", possible_students, self._printer)

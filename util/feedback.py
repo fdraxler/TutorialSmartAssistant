@@ -1,19 +1,19 @@
 import os
 import re
-from json import dump as j_dump
+from json import dump as j_dump, load
 
-from data.storage import ensure_folder_exists
+from data.storage import ensure_folder_exists, InteractiveDataStorage
 from util.console import string_table, align_vertical
 
 
 class FeedbackPolisher:
-    def __init__(self, storage, path, printer):
+    def __init__(self, storage: InteractiveDataStorage, path, printer):
         self.printer = printer
         self._storage = storage
         self._task_prefix = storage.muesli_data.feedback.task_prefix
         self._file_name = f"{self._storage.muesli_data.feedback.file_name}.txt"
         self._path = os.path.join(path, self._file_name)
-        self._students = self._find_students()
+        self._students = self._find_students(path)
         self._segments = self._read_segments()
 
         self._analyze_credit_annotations()
@@ -93,33 +93,10 @@ class FeedbackPolisher:
         for i in range(len(self._salutation)):
             self._salutation[i] = (self._salutation[i] + (' ' * max_length))[:max_length]
 
-    def _find_students(self):
-        camel_case_pattern = re.compile(r'[A-Z](?:[a-zöäüß]+|[A-Z]*(?=[A-Z]|$))')
-        merged_name = os.path.basename(os.path.dirname(self._path))
-        student_names_raw = merged_name.split('_')[:-1]
-        students = list()
-
-        for student_name in student_names_raw:
-            parts = camel_case_pattern.findall(student_name[0].upper() + student_name[1:])
-            if len(parts) > 0:
-                student_name = ("-".join(parts))
-
-            student_name = student_name.split("-")
-            student_name = " ".join(student_name)
-            possible_students = self._storage.get_students_by_name(student_name, mode='my')
-            if len(possible_students) == 0:
-                possible_students = self._storage.get_students_by_name(student_name, mode='all')
-
-            if len(possible_students) == 1:
-                students.append(possible_students[0])
-            elif len(possible_students) == 0:
-                self.printer.warning(f"No student found with name '{student_name}'. [IGNORE]")
-            else:
-                location = '(feedback.py: FeedbackPolisher._find_students)'
-                message = f"Did not expect {len(possible_students)} possible students for '{student_name}'. {location}"
-                raise ValueError(message)
-
-        return students
+    def _find_students(self, path):
+        with open(os.path.join(path, "submission_meta.json"), "r") as file:
+            data = load(file)
+        return [self._storage.get_student_by_muesli_id(muesli_id) for muesli_id in data["muesli_student_ids"]]
 
     def _polish_feedback(self, table):
         table = ["\n"] + table + ["\n"]

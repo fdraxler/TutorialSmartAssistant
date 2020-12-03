@@ -50,14 +50,14 @@ class ConsoleFormatter:
         return answer
 
     def yes_no(self, question, default="y"):
-        if default == "":
+        if default == "" or default is None:
             options = "(y/n)"
         elif default == "y":
             options = "([y]/n)"
         elif default == "n":
             options = "(y/[n])"
         else:
-            raise ValueError(f"Default answer '{default}' not understood.")
+            options = f"(y/n/[{default}])"
         while True:
             answer = self.ask(f"{question} {options}")
             if answer == "":

@@ -104,28 +104,28 @@ class SmartAssistant:
         self._printer.inform()
 
     def execute_cycle(self):
-        command = input(">: ")
+        str_command = input(">: ")
         with self._printer as printer:
             try:
-                name, args = parse_command(command)
+                name, args = parse_command(str_command)
                 command = self._command_register.get_command(name)
-
-                if command.min_arg_count <= len(args) <= command.max_arg_count:
-                    command(*args)
-                else:
-                    if command.min_arg_count == command.max_arg_count:
-                        limitation = f"exactly {command.min_arg_count}"
-                    else:
-                        limitation = f"between {command.min_arg_count} and {command.max_arg_count}"
-
-                    printer.error(f"The command '{command.name}' needs {limitation} arguments, but got {len(args)}.")
-
             except KeyError as k:
                 self._printer.error(normalize_string(str(k)))
                 self._printer.error("Please refer to 'help' / '?' to list all available commands.")
+                return
 
-            except Exception as e:
-                self._printer.error(f'{e.__class__.__name__}: {e}\n{format_exc()}')
+            if command.min_arg_count <= len(args) <= command.max_arg_count:
+                try:
+                    command(*args)
+                except Exception as e:
+                    self._printer.error(f'{e.__class__.__name__}: {e}\n{format_exc()}')
+            else:
+                if command.min_arg_count == command.max_arg_count:
+                    limitation = f"exactly {command.min_arg_count}"
+                else:
+                    limitation = f"between {command.min_arg_count} and {command.max_arg_count}"
+
+                printer.error(f"The command '{command.name}' needs {limitation} arguments, but got {len(args)}.")
 
         self._printer.inform()
 

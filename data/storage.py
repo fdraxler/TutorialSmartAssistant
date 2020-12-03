@@ -492,7 +492,9 @@ class InteractiveDataStorage:
         return result
 
     def has_presented(self, student):
-        return self._presented_score[student.tutorial_id][student.muesli_student_id]
+        if student.tutorial_id in self._presented_score:
+            return self._presented_score[student.tutorial_id][student.muesli_student_id]
+        return False
 
     def set_presented_for(self, student):
         self._presented_score[student.tutorial_id][student.muesli_student_id] = True

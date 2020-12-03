@@ -33,40 +33,41 @@ class WorkflowDownloadCommand(Command):
 
         self.printer.inform('Connecting to Moodle and collecting data.')
         self.printer.inform('This may take a few seconds.')
-        submissions = self._moodle.find_submissions(
-            moodle_data.course_id,
-            moodle_data.exercise_prefix,
-            exercise_number,
-            self.printer
-        )
-        self.printer.inform(f"Found a total of {len(submissions)} for '{moodle_data.exercise_prefix}{exercise_number}'")
+        with self._moodle:
+            submissions = self._moodle.find_submissions(
+                moodle_data.course_id,
+                moodle_data.exercise_prefix,
+                exercise_number,
+                self.printer
+            )
+            self.printer.inform(f"Found a total of {len(submissions)} for '{moodle_data.exercise_prefix}{exercise_number}'")
 
-        all_students = {student.moodle_student_id: student for student in self._storage.all_students}
+            all_students = {student.moodle_student_id: student for student in self._storage.all_students}
 
-        submissions = [submission for submission in submissions if submission.moodle_student_id in all_students]
-        self.printer.inform(f"Found {len(submissions)} submissions")
+            submissions = [submission for submission in submissions if submission.moodle_student_id in all_students]
+            self.printer.inform(f"Found {len(submissions)} submissions")
 
-        folder = os.path.join(
-            self._storage.storage_config.root,
-            self._storage.storage_config.submission_root,
-            f'{self._storage.storage_config.exercise_template}{exercise_number}',
-            self._storage.storage_config.raw_folder
-        )
-        ensure_folder_exists(folder)
-        for submission in submissions:
-            target_filename = os.path.join(folder, submission.file_name)
-            if os.path.isfile(target_filename):
-                self.printer.warning(f"Target path {submission.file_name} exists!")
-                if self.printer.ask("Continue? ([y]/n)") == "n":
-                    break
-            with open(target_filename, 'wb') as fp:
-                try:
-                    self.printer.inform(f"Downloading submission of {all_students[submission.moodle_student_id]} ... ", end='')
-                    self._moodle.download(submission.url, fp)
-                    self.printer.confirm('[Ok]')
-                except Exception as e:
-                    self.printer.error('[Err]')
-                    self.printer.error(str(e))
+            folder = os.path.join(
+                self._storage.storage_config.root,
+                self._storage.storage_config.submission_root,
+                f'{self._storage.storage_config.exercise_template}{exercise_number}',
+                self._storage.storage_config.raw_folder
+            )
+            ensure_folder_exists(folder)
+            for submission in submissions:
+                target_filename = os.path.join(folder, submission.file_name)
+                if os.path.isfile(target_filename):
+                    self.printer.warning(f"Target path {submission.file_name} exists!")
+                    if self.printer.ask("Continue? ([y]/n)") == "n":
+                        break
+                with open(target_filename, 'wb') as fp:
+                    try:
+                        self.printer.inform(f"Downloading submission of {all_students[submission.moodle_student_id]} ... ", end='')
+                        self._moodle.download(submission.url, fp)
+                        self.printer.confirm('[Ok]')
+                    except Exception as e:
+                        self.printer.error('[Err]')
+                        self.printer.error(str(e))
 
         with open(os.path.join(folder, "meta.json"), 'w') as fp:
             try:

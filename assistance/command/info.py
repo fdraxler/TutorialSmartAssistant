@@ -130,15 +130,14 @@ def select_student_by_name(value, storage, printer, action=None, mode='all', too
 
     if 1 < len(possible_students) < too_much_limit:
         selected_index = single_choice(
-            f"Found {len(possible_students)} possible choices",
+            f"Found {len(possible_students)} possible choices for '{value}'",
             possible_students,
             printer
         )
         if selected_index is not None:
             student = possible_students[selected_index]
     elif too_much_limit <= len(possible_students):
-        printer.inform("There are a lot of possibilities. Show them all? (y/n)")
-        if printer.input(">: ") == 'y':
+        if printer.yes_no(f"There are a lot of possibilities for '{value}'. Show them all? (y/n)", default=None):
             selected_index = single_choice(
                 f"Found {len(possible_students)} possible choices",
                 possible_students,
