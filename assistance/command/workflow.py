@@ -17,6 +17,7 @@ from mail.mail_out import EMailSender
 from moodle.api import MoodleSession
 from muesli.api import MuesliSession
 from util.feedback import FeedbackPolisher
+from util.files import copy_files, filter_and, filter_name_end, filter_name_not_end
 from util.parse_names import FileNameParser
 
 
@@ -227,7 +228,7 @@ class WorkflowPrepareCommand(Command):
             self_target = target_directory / f"Own feedback by {next_own_submission.name}"
             if not self_target.is_dir():
                 self_target.mkdir()
-            self.copy_files(next_own_submission, self_target, "commented", "cross-commented")
+            copy_files(next_own_submission, self_target, filter_and(filter_name_end("commented"), filter_name_not_end("cross-commented")))
 
     def copy_cross_feedback(self, cross_assignments, submission_muesli_ids, all_next_submissions, target_directory):
         next_cross_submissions = set()
@@ -239,7 +240,7 @@ class WorkflowPrepareCommand(Command):
             cross_target = target_directory / f"Cross by {next_cross_submission.name}"
             if not cross_target.is_dir():
                 cross_target.mkdir()
-            self.copy_files(next_cross_submission, cross_target, "cross-commented")
+            copy_files(next_cross_submission, cross_target, filter_name_end("cross-commented"))
 
     def load_muesli_data(self, exercise_number):
         can_generate_feedback = False
@@ -279,19 +280,6 @@ class WorkflowPrepareCommand(Command):
                         all_next_submissions[muesli_id] = next_submission
         return all_next_submissions
 
-    def copy_files(self, from_path: Path, to_path: Path, ending_in: str, not_ending_in: str = None):
-        for entry in from_path.iterdir():
-            target_entry = to_path / entry.name
-            if entry.is_dir():
-                if not target_entry.is_dir():
-                    target_entry.mkdir()
-                self.copy_files(entry, target_entry, ending_in, not_ending_in)
-            else:
-                stripped_name, _ = os.path.splitext(entry.name)
-                if stripped_name.endswith(ending_in):
-                    if not_ending_in is None or not stripped_name.endswith(not_ending_in):
-                        shutil.copy(entry, target_entry)
-
 
 class WorkflowConsolidate(Command):
     def __init__(self, printer, storage):
@@ -300,21 +288,27 @@ class WorkflowConsolidate(Command):
 
     def __call__(self, *args):
         exercise_number = args[0]
-        working_folder = self._storage.get_working_folder(exercise_number)
-        finished_folder = self._storage.get_finished_folder(exercise_number)
+        working_folder = Path(self._storage.get_working_folder(exercise_number))
+        finished_folder = Path(self._storage.get_finished_folder(exercise_number))
 
-        for directory in os.listdir(working_folder):
+        for directory in working_folder.iterdir():
             self.printer.inform()
-            self.printer.inform(f"Working in {directory}")
+            self.printer.inform(f"Working in {directory.name}")
             self.printer.inform("Polishing feedback ... ", end='')
             polisher = FeedbackPolisher(
                 self._storage,
-                p_join(working_folder, directory),
+                directory,
                 self.printer
             )
             self.printer.confirm("[Ok]")
             self.printer.inform("Saving meta data   ... ", end='')
-            polisher.save_meta_to_folder(p_join(finished_folder, directory))
+            target_directory = finished_folder / directory.name
+            polisher.save_meta_to_folder(target_directory)
+
+            feedback_directory = target_directory / "Original and Comments"
+            if not feedback_directory.is_dir():
+                feedback_directory.mkdir()
+            copy_files(directory, feedback_directory, filter_and(filter_name_not_end("Feedback"), filter_name_not_end("submission_meta")))
             self.printer.confirm("[Ok]")
 
 
@@ -332,31 +326,37 @@ class WorkflowUpload(Command):
         data = defaultdict(dict)
 
         for directory in os.listdir(finished_folder):
-            with open(p_join(finished_folder, directory, meta_file_name), 'r', encoding="utf-8") as fp:
+            meta_path = p_join(finished_folder, directory, meta_file_name)
+            if not os.path.isfile(meta_path):
+                self.printer.inform(f"Skipping {directory}")
+                continue
+
+            with open(meta_path, 'r', encoding="utf-8") as fp:
                 meta = SimpleNamespace(**j_load(fp))
                 for muesli_id in meta.muesli_ids:
                     student = self._storage.get_student_by_muesli_id(muesli_id)
                     data[student.tutorial_id][muesli_id] = meta.credits_per_task
 
-        for tutorial_id, student_data in data.items():
-            tutorial = self._storage.get_tutorial_by_id(tutorial_id)
-            self.printer.inform(
-                f"Uploading credits to {tutorial.time} for {len(student_data.keys()):>3d} students ... ",
-                end=''
-            )
-            exercise_id = self._muesli.get_exercise_id(
-                tutorial_id,
-                self._storage.muesli_data.exercise_prefix,
-                exercise_number
-            )
-            status, number_of_changes = self._muesli.upload_credits(tutorial_id, exercise_id, student_data)
+        with self._muesli:
+            for tutorial_id, student_data in data.items():
+                tutorial = self._storage.get_tutorial_by_id(tutorial_id)
+                self.printer.inform(
+                    f"Uploading credits to {tutorial.time} for {len(student_data.keys()):>3d} students ... ",
+                    end=''
+                )
+                exercise_id = self._muesli.get_exercise_id(
+                    tutorial_id,
+                    self._storage.muesli_data.exercise_prefix,
+                    exercise_number
+                )
+                status, number_of_changes = self._muesli.upload_credits(tutorial_id, exercise_id, student_data)
 
-            if status:
-                self.printer.confirm("[Ok]", end="")
-                self.printer.inform(f" Changed {number_of_changes:>3d} entries.")
-            else:
-                self.printer.error("[Err]")
-                self.printer.error("Please check your connection state.")
+                if status:
+                    self.printer.confirm("[Ok]", end="")
+                    self.printer.inform(f" Changed {number_of_changes:>3d} entries.")
+                else:
+                    self.printer.error("[Err]")
+                    self.printer.error("Please check your connection state.")
 
 
 class WorkflowSendMail(Command):
@@ -382,19 +382,22 @@ class WorkflowSendMail(Command):
         return exercise_number, debug
 
     def __call__(self, *args):
-        exercise_number, debug = self. \
-            _parse_arguments(args)
+        exercise_number, debug = self._parse_arguments(args)
         if debug:
             self.printer.confirm("Running in debug mode.")
 
-        finished_folder = self._storage.get_finished_folder(exercise_number)
+        finished_folder = Path(self._storage.get_finished_folder(exercise_number))
         feedback_file_name = f"{self._storage.muesli_data.feedback.file_name}.txt"
         meta_file_name = "meta.json"
 
         with EMailSender(self._storage.email_account, self._storage.my_name) as sender:
-            for directory in os.listdir(finished_folder):
+            for directory in finished_folder.iterdir():
+                if not (directory / meta_file_name).is_file():
+                    self.printer.inform(f"Skipping {directory.name}.")
+                    continue
+
                 students = list()
-                with open(p_join(finished_folder, directory, meta_file_name), 'r', encoding="utf-8") as fp:
+                with open(directory / meta_file_name, 'r') as fp:
                     meta = SimpleNamespace(**j_load(fp))
 
                     for muesli_id in meta.muesli_ids:
@@ -404,22 +407,28 @@ class WorkflowSendMail(Command):
                         except ValueError:
                             self.printer.error(f"Did not find student with id {muesli_id}, maybe he left the tutorial?")
 
-                    feedback_path = p_join(finished_folder, directory, feedback_file_name)
+                    feedback_path = directory / feedback_file_name
 
                     message = list()
-                    message.append("Dieses Feedback ist für:")
+                    message.append("This feedback is for:")
                     for student in students:
                         message.append(f"• {student.muesli_name} ({student.muesli_mail})")
                     message.append("")
-                    message.append("Das Feedback befindet sich im Anhang.")
+                    message.append("Tutor notes are in Feedback.txt, with explanations about where you did really well and where you did not.")
                     message.append("")
+                    if len(list(directory.glob("Original and Comments/Cross by *"))) > 0:
+                        message.append("You also got feedback from another student group. Be sure to check it out.")
+                        message.append("")
                     message.append(f"LG {self._storage.my_name_alias}")
                     message = "\n".join(message)
+
+                    shutil.make_archive(directory / "Comments", "zip", directory, "Original and Comments")
+                    archive_zip = directory / "Comments.zip"
 
                     student_names = ', '.join([student.muesli_name for student in students])
                     self.printer.inform(f"Sending feedback to {student_names} ... ", end='')
                     try:
-                        sender.send_mail(students, message, f'[IFML-20] Feedback zu {self._storage.muesli_data.exercise_prefix} {exercise_number}', feedback_path, debug=debug)
+                        sender.send_mail(students, message, f'[IFML-20] Feedback to {self._storage.muesli_data.exercise_prefix} {exercise_number}', [feedback_path, archive_zip], debug=debug)
                         self.printer.confirm("[Ok]")
                     except BaseException as e:
                         self.printer.error(f"[Err] - {e}")

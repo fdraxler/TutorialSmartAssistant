@@ -1,3 +1,4 @@
+from _socket import gaierror
 from email.encoders import encode_base64
 from email.header import Header
 from email.mime.base import MIMEBase
@@ -5,8 +6,6 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from os.path import basename
 from smtplib import SMTP
-
-from _socket import gaierror
 
 
 class EMailSender:
@@ -36,7 +35,7 @@ class EMailSender:
 
         return self
 
-    def send_mail(self, students, message, subject, attachment_file=None, debug=False):
+    def send_mail(self, students, message, subject, attachment_files=None, debug=False):
         def normalize_mail(name, mail):
             name = Header(f'{name}'.encode('utf-8'), 'utf-8').encode()
             return f'{name} <{mail}>'
@@ -54,9 +53,10 @@ class EMailSender:
         text_part = MIMEText(message, 'plain')
         email_message.attach(text_part)
 
-        if attachment_file is not None:
-            attachment = create_file_attachment(attachment_file)
-            email_message.attach(attachment)
+        if attachment_files is not None:
+            for attachment_file in attachment_files if isinstance(attachment_files, list) else [attachment_files]:
+                attachment = create_file_attachment(attachment_file)
+                email_message.attach(attachment)
 
         if debug:
             to_emails = [from_email]
