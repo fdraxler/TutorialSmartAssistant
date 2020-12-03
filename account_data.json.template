@@ -9,7 +9,7 @@
   },
   "mail": {
     "user": "<user of the mail account e.g. uni id in case of stud address>",
-    "password": "<e-mail password e.g. uni password in case of stud address>",
+    "password": "<your e-mail password e.g. uni password in case of stud address>",
     "address": "<your e-mail address>",
     "mail_server": {
       "incoming": {

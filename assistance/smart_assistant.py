@@ -24,7 +24,7 @@ class SmartAssistant:
         self._command_register = CommandRegister()
         self.ready = True
 
-        self._initialize_connections()
+        # self._initialize_connections()
         self._initialize_storage()
         self._command_register.register_command(StopCommand(self._printer, self._stop))
         self._command_register.register_command(HelpCommand(self._printer, self._command_register))

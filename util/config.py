@@ -10,12 +10,22 @@ def load_config(path):
     return dict_to_simple_namespace(json_dict)
 
 
+class LazyPassword:
+    def __init__(self, account_name):
+        self.account_name = account_name
+        self.value = None
+
+    def __str__(self):
+        if self.value is None:
+            self.value = getpass(f"Input password for {self.account_name}: ")
+        return self.value
+
+
 def mixin_passwords(config, name="root"):
     for key, value in config.__dict__.items():
         if isinstance(value, str):
-            if key == "password" and value == "###INTERACTIVE":
-                # todo only once needed
-                config.__dict__[key] = getpass(f"Input password for {name}: ")
+            if key == "password" and (value == "###INTERACTIVE" or (value.startswith("<your ") and "password" in value and value.endswith(">"))):
+                config.__dict__[key] = LazyPassword(name)
         else:
             mixin_passwords(value, key)
     return config
@@ -24,4 +34,4 @@ def mixin_passwords(config, name="root"):
 def dict_to_simple_namespace(d) -> SimpleNamespace:
     if type(d) is not dict:
         return d
-    return SimpleNamespace(**{key:dict_to_simple_namespace(value) for key, value in d.items()})
+    return SimpleNamespace(**{key: dict_to_simple_namespace(value) for key, value in d.items()})

@@ -4,11 +4,12 @@ from bs4 import BeautifulSoup
 from requests import Session
 
 from data.data import Student, Tutorial
+from util.session import BaseSession
 
 
-class MuesliSession:
+class MuesliSession(BaseSession):
     def __init__(self, account):
-        self._session = None
+        super().__init__()
         self._account = account
         self._logout_url = None
         self._test_url = 'https://muesli.mathi.uni-heidelberg.de/start'
@@ -17,10 +18,6 @@ class MuesliSession:
     @property
     def name(self):
         return f"Muesli [{self.get_online_state()}]"
-
-    @property
-    def online(self):
-        return self.get_online_state() == 'online'
 
     def get(self, url, parse=True):
         result = self._session.get(url)
@@ -64,9 +61,6 @@ class MuesliSession:
             raise ConnectionRefusedError('Wrong username or password.')
 
         self._logout_url = 'https://muesli.mathi.uni-heidelberg.de/user/logout'
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        self.logout()
 
     def logout(self):
         try:

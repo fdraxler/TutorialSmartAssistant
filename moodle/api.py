@@ -4,10 +4,12 @@ from types import SimpleNamespace
 from bs4 import BeautifulSoup
 from requests import Session
 
+from util.session import BaseSession
 
-class MoodleSession:
+
+class MoodleSession(BaseSession):
     def __init__(self, account):
-        self._session = None
+        super().__init__()
         self._account = account
         self._logout_url = None
         self._test_url = 'https://moodle.uni-heidelberg.de/user/profile.php'
@@ -57,9 +59,6 @@ class MoodleSession:
         if error_element is not None:
             raise ConnectionRefusedError('Wrong username or password.')
         self._logout_url = soup.find_all("a", attrs={"role": "menuitem", "data-title": "logout,moodle"})[0]["href"]
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        self.logout()
 
     def logout(self):
         self._session.post(self._logout_url)
