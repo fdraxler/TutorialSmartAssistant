@@ -22,7 +22,7 @@ Version used for Fundamentals of Machine Learning in winter 2020.
         1. Write `[@-X]` when you deduct points, `X` can be a decimal like `1.5`.
         2. Write `[@+X]` for bonus points when the solution is especially nice.
     3. If you want to make detailed comments, copy the `whatever-commented.ipynb` to `whatever-corrected.ipynb` and add changes there, i.e. using `<span style="color:red;font-weight:bold">Comment</span>` in Markdown. Make sure to export this file to `whatever-corrected.html`.
-    4. Look at the cross feedback. When it meets the requirements, use `pres XX 'NAME'` on each NAME (not implemented yet!). Alternatively, open up the cross feedback point page in muesli and enter the information directly. Make sure to keep the page open for short time, otherwise you might overwrite other tutor's input.
+    4. Look at the cross feedback. When it meets the requirements, open up the cross feedback point page in Müsli and enter the information directly. Make sure to keep the page open for short time, otherwise you might overwrite other tutor's input.
 6. `w.cons XX` parses the information in the corrected directories and copies them.
 7. `w.up XX` sends the corrected directories as zip files to the students via mail and uploads the achieved points to Müsli.
 
