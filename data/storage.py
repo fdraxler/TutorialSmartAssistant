@@ -165,13 +165,15 @@ class InteractiveDataStorage:
         return InteractiveDataStorage.__instance
 
     def init_data(self, muesli, moodle):
-        self._init_my_name(muesli)
-        self._init_tutorial_ids(muesli, mode='my')
-        self._init_tutorial_ids(muesli, mode='other')
-        self._init_tutorials(muesli)
-        self._init_students(muesli)
-        self._init_moodle_attributes(moodle)
-        self._init_presented_scores(muesli)
+        with muesli:
+            self._init_my_name(muesli)
+            self._init_tutorial_ids(muesli, mode='my')
+            self._init_tutorial_ids(muesli, mode='other')
+            self._init_tutorials(muesli)
+            self._init_students(muesli)
+            self._init_presented_scores(muesli)
+        with moodle:
+            self._init_moodle_attributes(moodle)
 
         self.__instance.imported_students = self.physical_storage.load_exchanged_students('imported')
         self.__instance.exported_students = self.physical_storage.load_exchanged_students('exported')
@@ -536,8 +538,9 @@ class InteractiveDataStorage:
 
     def update_exercise_meta(self, muesli, exercise_number):
         tutorial_id = self.my_tutorial_ids[0]
-        exercise_id = muesli.get_exercise_id(tutorial_id, self.muesli_data.exercise_prefix, exercise_number)
-        max_credits = muesli.get_max_credits_of(tutorial_id, exercise_id)
+        with muesli:
+            exercise_id = muesli.get_exercise_id(tutorial_id, self.muesli_data.exercise_prefix, exercise_number)
+            max_credits = muesli.get_max_credits_of(tutorial_id, exercise_id)
         max_credits = [[f'{self.muesli_data.feedback.task_prefix}{i + 1}', v] for i, v in enumerate(max_credits)]
 
         data = {

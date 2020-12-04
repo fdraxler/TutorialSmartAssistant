@@ -209,6 +209,12 @@ class WorkflowPrepareCommand(Command):
             any_own_student_detected = any(muesli_id in my_student_muesli_ids for muesli_id in submission_muesli_ids)
 
             if any_own_student_detected:
+                not_my_students = [self._storage.get_student_by_muesli_id(muesli_id) for muesli_id in submission_muesli_ids if muesli_id not in my_student_muesli_ids]
+                if len(not_my_students) > 0:
+                    self.printer.warning(f"There are students among {src_directory.name} who do not belong to your group: {', '.join([student.muesli_name for student in not_my_students])}.")
+                    if not self.printer.yes_no("Please talk to the head tutor. Continue anyway?", default="n"):
+                        return
+
                 target_directory = working_folder / src_directory.name
                 if not target_directory.is_dir():
                     shutil.copytree(src_directory, target_directory)
