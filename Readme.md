@@ -25,7 +25,7 @@ Version used for Fundamentals of Machine Learning in winter 2020.
     4. Look at the cross feedback. When it meets the requirements, open up the cross feedback point page in Müsli and enter the information directly. Make sure to keep the page open for short time, otherwise you might overwrite other tutor's input.
 6. `w.cons XX` parses the information in the corrected directories and copies them.
 7. `w.up XX` sends the corrected directories as zip files uploads the achieved points to Müsli.
-8. `w.send XX [--debug]` sends the Feedback and all files in the corrected submission to the students via mail.
+8. `w.send XX [--debug]` sends the Feedback and all files in the corrected submissions to all students via mail. The debug flag sends all emails only to your own address.
 
 
 ### Cross Assignments
@@ -33,9 +33,9 @@ Version used for Fundamentals of Machine Learning in winter 2020.
 1. Make sure you ran `w.down XX` as before `w.uz XX`
 3. `w.cross XX [--debug]` assigns each submission from this exercise to another group who handed in.
     1. Results are stored `cross-assignments.json`
-    2. Assignments are sent via email by attaching the corresponding `.zip` file.
+    2. Assignments are sent via email by attaching the corresponding `.zip` file. The debug flag sends all emails only to your own address.
 3. Send the other tutors the `cross-assignments.json` file.
-4. When additional students get cross feedback assignments, add them to the file manually⁄ by searching the muesli ids and send the corrected version to the other tutors.
+4. When additional students get cross feedback assignments, add them to the file manually by searching the muesli ids and send the corrected version to the other tutors.
 
 
 ## TODOs
