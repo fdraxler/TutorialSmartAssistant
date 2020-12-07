@@ -298,6 +298,9 @@ class WorkflowConsolidate(Command):
         finished_folder = Path(self._storage.get_finished_folder(exercise_number))
 
         for directory in working_folder.iterdir():
+            if directory.name.startswith("."):
+                continue
+
             self.printer.inform()
             self.printer.inform(f"Working in {directory.name}")
             self.printer.inform("Polishing feedback ... ", end='')
