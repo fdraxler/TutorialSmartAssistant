@@ -172,8 +172,7 @@ class InteractiveDataStorage:
             self._init_tutorials(muesli)
             self._init_students(muesli)
             self._init_presented_scores(muesli)
-        with moodle:
-            self._init_moodle_attributes(moodle)
+        self._init_moodle_attributes(moodle)
 
         self.__instance.imported_students = self.physical_storage.load_exchanged_students('imported')
         self.__instance.exported_students = self.physical_storage.load_exchanged_students('exported')
@@ -309,9 +308,9 @@ class InteractiveDataStorage:
         no_moodle_info = [student for student in all_students if student.moodle_student_id is None]
 
         if len(no_moodle_info) == len(all_students):
-            moodle_students = self._load_students_from_moodle(moodle)
-            already_known = [student.moodle_student_id for student in all_students if
-                             student.moodle_student_id is not None]
+            with moodle:
+                moodle_students = self._load_students_from_moodle(moodle)
+            already_known = [student.moodle_student_id for student in all_students if student.moodle_student_id is not None]
 
             print(f"There are already {len(already_known)} students matched.")
             moodle_students = [student for student in moodle_students if student[0] not in already_known]
