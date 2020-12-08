@@ -80,7 +80,7 @@ class FileNameParser:
             correct_file_name_end = f'_ex{exercise_number}'
 
         self._printer.inform("Checking file name suffix.")
-        if file_name.endswith(f"-ex{exercise_number:}") or (is_number(exercise_number) and file_name.endswith(f"-ex{exercise_number:02d}")):
+        if file_name.endswith(f"-ex{exercise_number:}"):
             self.problems.append(f"Used '-' instead of '_' to mark end of filename. Please use '{correct_file_name_end}'")
             file_name = file_name.replace(f'-ex{exercise_number:02d}', correct_file_name_end) \
                 .replace(f'-ex{exercise_number:}', correct_file_name_end)
