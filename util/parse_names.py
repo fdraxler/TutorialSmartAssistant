@@ -18,7 +18,7 @@ class NameParsingFailed(Exception):
 
 
 class FileNameParser:
-    def __init__(self, printer: ConsoleFormatter, storage: InteractiveDataStorage, file_name, exercise_number):
+    def __init__(self, printer: ConsoleFormatter, storage: InteractiveDataStorage, file_name: str, exercise_number: str):
         self._printer = printer
         self._storage = storage
 
@@ -74,24 +74,36 @@ class FileNameParser:
     def _strip_suffix(self):
         exercise_number = self._exercise_number
         file_name = self._file_name
-        try:
-            correct_file_name_end = f'_ex{exercise_number:02d}'
-        except ValueError:
-            correct_file_name_end = f'_ex{exercise_number}'
+        correct_file_name_end = f'_ex{exercise_number}'
 
         self._printer.inform("Checking file name suffix.")
-        if file_name.endswith(f"-ex{exercise_number:}"):
-            self.problems.append(f"Used '-' instead of '_' to mark end of filename. Please use '{correct_file_name_end}'")
-            file_name = file_name.replace(f'-ex{exercise_number:02d}', correct_file_name_end) \
-                .replace(f'-ex{exercise_number:}', correct_file_name_end)
 
-        if correct_file_name_end != f"_ex{exercise_number:}" and file_name.endswith(f"_ex{exercise_number:}"):
-            self.problems.append(f"The exercise number should be formatted with two digits.")
-            file_name = file_name.replace(f'_ex{exercise_number:}', correct_file_name_end)
+        wrong_ends = [
+            (f"-ex{exercise_number}", f"Used '-' instead of '_' to mark end of filename. Please use '{correct_file_name_end}'"),
+            (f"_ex{exercise_number.lstrip('0')}", f"The exercise number should be formatted with two digits."),
+            (f"_Ex{exercise_number}", f"Please use lower case 'ex' instead of 'Ex'."),
+        ]
 
-        if not (file_name.endswith(f"_ex{exercise_number}")):
+        if not file_name.endswith(correct_file_name_end):
+            for possible_wrong_end, problem in wrong_ends:
+                if file_name.endswith(possible_wrong_end):
+                    self.problems.append(problem)
+                    file_name = file_name[:-len(possible_wrong_end)] + correct_file_name_end
+
+        if not file_name.endswith(correct_file_name_end):
             self.problems.append(f"Filename does not end with required '{correct_file_name_end}'.")
-            file_name += correct_file_name_end
+            while True:
+                identified_ending = self.ask_retry(f"Please enter the part of\n\t{file_name!r}\nafter the last name. {correct_file_name_end!r} would have been correct.")
+                if file_name.endswith(identified_ending):
+                    if len(identified_ending) == 0 and not self.yes_no_retry("Entered string '' is empty. Is this correct?"):
+                        continue
+
+                    file_name = file_name[:-len(identified_ending)] + correct_file_name_end
+                    self._printer.inform("Corrected ending")
+                    self.problems.append(f"Your filename ended with {identified_ending!r}, but should have ended in {correct_file_name_end!r}")
+                    break
+                else:
+                    self._printer.warning(f"The filename does not end in {identified_ending!r}. Please try again or enter student names manually.")
 
         return file_name[:-len(correct_file_name_end)]
 
