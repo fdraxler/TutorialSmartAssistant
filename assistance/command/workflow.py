@@ -17,7 +17,7 @@ from mail.mail_out import EMailSender
 from moodle.api import MoodleSession
 from muesli.api import MuesliSession
 from util.feedback import FeedbackPolisher
-from util.files import copy_files, filter_and, filter_name_end, filter_name_not_end
+from util.files import copy_files, filter_and, filter_name_end, filter_name_not_end, filter_not, filter_or
 from util.parse_names import FileNameParser
 
 
@@ -187,6 +187,9 @@ class WorkflowUnzipCommand(Command):
 
 
 class WorkflowPrepareCommand(Command):
+    FILTER_CROSS_COMMENT = filter_or(filter_name_end("cross-commented"), filter_name_end("cross_commented"))
+    FILTER_SELF_COMMENT = filter_and(filter_name_end("commented"), filter_not(FILTER_CROSS_COMMENT))
+
     def __init__(self, printer, storage: InteractiveDataStorage, muesli: MuesliSession):
         super().__init__(printer, "workflow.prepare", ("w.prep",), 1, 2)
         self._storage = storage
@@ -246,11 +249,11 @@ class WorkflowPrepareCommand(Command):
             if submission_muesli_id in all_next_submissions:
                 next_own_submissions.add(all_next_submissions[submission_muesli_id])
         for next_own_submission in next_own_submissions:
-            # Find files ending with -commented.X and copy them over
+            # Find files ending with commented.X and copy them over
             self_target = target_directory / f"Own feedback by {next_own_submission.name}"
             if not self_target.is_dir():
                 self_target.mkdir()
-            copy_files(next_own_submission, self_target, filter_and(filter_name_end("commented"), filter_name_not_end("cross-commented")))
+            copy_files(next_own_submission, self_target, WorkflowPrepareCommand.FILTER_SELF_COMMENT)
 
     def copy_cross_feedback(self, cross_assignments, submission_muesli_ids, all_next_submissions, target_directory):
         next_cross_submissions = set()
@@ -258,11 +261,11 @@ class WorkflowPrepareCommand(Command):
             if solution_by_muesli_id in submission_muesli_ids and was_assigned_to_muesli_id in all_next_submissions:
                 next_cross_submissions.add(all_next_submissions[was_assigned_to_muesli_id])
         for next_cross_submission in next_cross_submissions:
-            # Find files ending with -cross-commented.X and copy them over
+            # Find files ending with cross[-_]commented.X and copy them over
             cross_target = target_directory / f"Cross by {next_cross_submission.name}"
             if not cross_target.is_dir():
                 cross_target.mkdir()
-            copy_files(next_cross_submission, cross_target, filter_name_end("cross-commented"))
+            copy_files(next_cross_submission, cross_target, WorkflowPrepareCommand.FILTER_CROSS_COMMENT)
 
     def load_muesli_data(self, exercise_number):
         can_generate_feedback = False

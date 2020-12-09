@@ -2,12 +2,25 @@ import os
 import shutil
 from pathlib import Path
 from typing import Callable
-from zipfile import ZipFile
 
 
 def filter_and(*filters):
     def and_test(path: Path):
         return all(filter(path) for filter in filters)
+
+    return and_test
+
+
+def filter_or(*filters):
+    def and_test(path: Path):
+        return any(filter(path) for filter in filters)
+
+    return and_test
+
+
+def filter_not(filter):
+    def and_test(path: Path):
+        return not filter(path)
 
     return and_test
 
@@ -40,4 +53,3 @@ def copy_files(from_path: Path, to_path: Path, filter: Callable[[Path], bool] = 
         else:
             if filter is None or filter(entry):
                 shutil.copy(entry, target_entry)
-
