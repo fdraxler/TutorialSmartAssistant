@@ -93,6 +93,7 @@ class WorkflowUnzipCommand(Command):
         raw_folder = self._storage.get_raw_folder(exercise_number)
         preprocessed_folder = self._storage.get_preprocessed_folder(exercise_number)
 
+        multi_hand_in_tracker = defaultdict(list)
         for file in os.listdir(raw_folder):
             if file.endswith((".zip", ".tar.gz", ".tar", ".7z")):
                 if file.endswith(".tar.gz"):
@@ -103,22 +104,37 @@ class WorkflowUnzipCommand(Command):
 
                 source_path = os.path.join(raw_folder, file)
                 name_parser = FileNameParser(self.printer, self._storage, file_name, exercise_number)
-                target_path = os.path.join(preprocessed_folder, name_parser.normalized_name)
+                problems = list(name_parser.problems)
 
+                if name_parser.normalized_name in multi_hand_in_tracker:
+                    problems.append(f"There appear to be more than one submission by your group. We overwrote the contents of {', '.join(map(repr, multi_hand_in_tracker[name_parser.normalized_name]))} with {file}.")
+
+                    self.printer.warning(f"A submission by {name_parser.normalized_name} was already extracted!")
+                    self.printer.warning("Previously extracted file names are:")
+                    self.printer.indent()
+                    for prev_name in multi_hand_in_tracker[name_parser.normalized_name]:
+                        self.printer.warning(f" - {prev_name}")
+                    self.printer.outdent()
+                    self.printer.inform("You can manually delete the .zip file from the raw folder or ignore this message.")
+                    if not self.printer.yes_no("Continue?"):
+                        break
+                multi_hand_in_tracker[name_parser.normalized_name].append(file)
+
+                target_path = os.path.join(preprocessed_folder, name_parser.normalized_name)
                 if os.path.isdir(target_path):
                     self.printer.warning(f"Target path {name_parser.normalized_name} exists!")
-                    if self.printer.ask("Continue? ([y]/n)") == "n":
+                    if not self.printer.yes_no("Continue?"):
                         break
 
                 if not extension.endswith("zip"):
-                    name_parser.problems.append(f"Minor: Wrong archive format, please use '.zip' instead of '{extension}'.")
+                    problems.append(f"Minor: Wrong archive format, please use '.zip' instead of '{extension}'.")
 
                 self.printer.inform("Found: " + ", ".join([student.muesli_name for student in name_parser.students]))
-                if len(name_parser.problems) > 0:
+                if len(problems) > 0:
                     self.printer.inform()
                     self.printer.warning("While normalizing name there were some problems:")
                     self.printer.indent()
-                    for problem in name_parser.problems:
+                    for problem in problems:
                         self.printer.warning("- " + problem)
                     self.printer.outdent()
                     if self.printer.ask("Continue? ([y]/n)") == "n":
@@ -150,7 +166,7 @@ class WorkflowUnzipCommand(Command):
                             if self.printer.ask("Continue? ([y]/n)") == "n":
                                 break
                         else:
-                            name_parser.problems.append(problem)
+                            problems.append(problem)
                     self.printer.confirm("[OK]")
                 except shutil.ReadError:
                     self.printer.error(f"Not supported archive-format: '{extension}'")
@@ -158,7 +174,7 @@ class WorkflowUnzipCommand(Command):
                 with open(os.path.join(target_path, "submission_meta.json"), 'w', encoding='utf-8') as fp:
                     data = {
                         "original_name": file,
-                        "problems": name_parser.problems,
+                        "problems": problems,
                         "muesli_student_ids": [student.muesli_student_id for student in name_parser.students]
                     }
                     json_save(data, fp)

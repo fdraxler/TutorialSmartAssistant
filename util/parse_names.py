@@ -95,10 +95,13 @@ class FileNameParser:
             while True:
                 identified_ending = self.ask_retry(f"Please enter the part of\n\t{file_name!r}\nafter the last name. {correct_file_name_end!r} would have been correct.")
                 if file_name.endswith(identified_ending):
-                    if len(identified_ending) == 0 and not self.yes_no_retry("Entered string '' is empty. Is this correct?"):
-                        continue
+                    if len(identified_ending) == 0:
+                        if not self.yes_no_retry("Entered string '' is empty. Is this correct?"):
+                            continue
+                    else:
+                        file_name = file_name[:-len(identified_ending)]
 
-                    file_name = file_name[:-len(identified_ending)] + correct_file_name_end
+                    file_name = file_name + correct_file_name_end
                     self._printer.inform("Corrected ending")
                     self.problems.append(f"Your filename ended with {identified_ending!r}, but should have ended in {correct_file_name_end!r}")
                     break
