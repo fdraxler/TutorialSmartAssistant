@@ -181,7 +181,7 @@ class FileNameParser:
         if name is None:
             name = self._printer.input(">: ")
 
-        if name is 'cancel':
+        if name == 'cancel':
             return None
         elif len(name) == 0:
             return None
