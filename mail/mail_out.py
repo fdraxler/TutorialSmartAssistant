@@ -11,7 +11,7 @@ from smtplib import SMTP
 class EMailSender:
     def __init__(self, mail_account, my_name):
         self._email_user = mail_account.user
-        self._email_password = mail_account.password
+        self._email_password = str(mail_account.password)
         self._my_mail = mail_account.address
 
         self._host = mail_account.mail_server.outgoing.host
