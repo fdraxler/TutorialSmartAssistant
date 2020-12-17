@@ -609,24 +609,24 @@ class InteractiveDataStorage:
                     print(line, file=fp)
 
 
+def replace_special_chars(processed_name):
+    # Umlauts
+    processed_name = processed_name.replace('ä', 'ae')
+    processed_name = processed_name.replace('ö', 'oe')
+    processed_name = processed_name.replace('ü', 'ue')
+    processed_name = processed_name.replace('ß', 'ss')
+    # Accents
+    processed_name = unicodedata.normalize('NFD', processed_name).encode('ascii', 'ignore').decode("utf-8")
+    return str(processed_name)
+
+
 def match_student(input_name, list_of_students):
-    def strip_accents(text):
-        text = unicodedata.normalize('NFD', text) \
-            .encode('ascii', 'ignore') \
-            .decode("utf-8")
-
-        return str(text)
-
     def preprocess_name(name):
         if name is None:
             return list()
         else:
             processed_name = name.lower()
-            processed_name = processed_name.replace('ä', 'ae')
-            processed_name = processed_name.replace('ö', 'oe')
-            processed_name = processed_name.replace('ü', 'ue')
-            processed_name = processed_name.replace('ß', 'ss')
-            processed_name = strip_accents(processed_name)
+            processed_name = replace_special_chars(processed_name)
             processed_name = [part.split('-') for part in processed_name.split()]
             processed_name = [part for chunk in processed_name for part in chunk]
             return processed_name

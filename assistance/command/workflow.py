@@ -82,14 +82,19 @@ class WorkflowDownloadCommand(Command):
 
 class WorkflowUnzipCommand(Command):
     def __init__(self, printer, storage):
-        super().__init__(printer, "workflow.unzip", ("w.uz",), 1, 1)
+        super().__init__(printer, "workflow.unzip", ("w.uz",), 1, 2)
         self._storage = storage
 
         from py7zr import unpack_7zarchive
         shutil.register_unpack_format('7zip', ['.7z'], unpack_7zarchive)
 
-    def __call__(self, *args):
-        exercise_number = args[0]
+    def __call__(self, exercise_number, skip_existing=False):
+        if skip_existing is not False:
+            if skip_existing == "--skip":
+                skip_existing = True
+                raise NotImplementedError()
+            else:
+                raise ValueError(f"Did not understand second parameter {skip_existing}, should be '--skip' or nothin.")
         raw_folder = self._storage.get_raw_folder(exercise_number)
         preprocessed_folder = self._storage.get_preprocessed_folder(exercise_number)
 

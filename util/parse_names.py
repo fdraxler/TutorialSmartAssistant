@@ -1,7 +1,7 @@
 import re
 
 from assistance.command.info import select_student_by_name
-from data.storage import InteractiveDataStorage
+from data.storage import InteractiveDataStorage, replace_special_chars
 from util.console import single_choice, ConsoleFormatter
 
 
@@ -34,35 +34,39 @@ class FileNameParser:
         try:
             name_part = self._strip_suffix()
             self._identify_students(name_part)
-        except NameParsingFailed:
+        except NameParsingFailed as npf:
+            if len(str(npf)) > 0:
+                self.problems.append(str(npf))
+            self._printer.warning(str(npf))
             while True:
                 try:
                     self._manual_all_students()
                     break
-                except NameParsingFailed as e:
-                    if len(str(e)) > 0:
-                        self.problems.append(f"Oh no: {e}")
+                except NameParsingFailed as npf_2:
+                    if len(str(npf_2)) > 0:
+                        self.problems.append(str(npf_2))
+                    self._printer.warning(str(npf_2))
                     if self._printer.yes_no("Do you want to skip this hand in?", default="n"):
                         break
 
+        if len(self.problems) > 0:
+            self.problems.append(f"The perfect file name for your group is '{self.correctly_named_file}'")
         if len(self.students) < 2:
             self.problems.append("Submission groups should consist at least of 2 members!")
         if 3 < len(self.students):
             self.problems.append("Submission groups should consist at most of 3 members!")
 
-    def ask_retry(self, question):
+    def ask_retry(self, question, fail_reason):
         self._printer.inform("Type 'manual' to enter manual mode.")
         answer = self._printer.ask(question)
         if answer == "manual":
-            raise NameParsingFailed()
+            raise NameParsingFailed(fail_reason)
         return answer
 
-    def yes_no_retry(self, question):
+    def yes_no_retry(self, question, fail_reason):
         while True:
-            answer = self.ask_retry(f"{question} (y/n/manual)")
-            if answer == "manual":
-                raise NameParsingFailed()
-            elif answer in ["y", "n"]:
+            answer = self.ask_retry(f"{question} (y/n/manual)", fail_reason)
+            if answer in ["y", "n"]:
                 return answer == "y"
             else:
                 self._printer.warning(f"Could not understand your answer: {answer}")
@@ -70,6 +74,10 @@ class FileNameParser:
     @property
     def normalized_name(self):
         return ", ".join(sorted(student.muesli_name for student in self.students))
+
+    @property
+    def correctly_named_file(self):
+        return "_".join(sorted("-".join(replace_special_chars(student.muesli_name).split(" ")) for student in self.students)) + f"_ex{self._exercise_number}.zip"
 
     def _strip_suffix(self):
         exercise_number = self._exercise_number
@@ -93,10 +101,11 @@ class FileNameParser:
         if not file_name.endswith(correct_file_name_end):
             self.problems.append(f"Filename does not end with required '{correct_file_name_end}'.")
             while True:
-                identified_ending = self.ask_retry(f"Please enter the part of\n\t{file_name!r}\nafter the last name. {correct_file_name_end!r} would have been correct.")
+                file_name_ending_problem = "File name ending is not correct."
+                identified_ending = self.ask_retry(f"Please enter the part of\n\t{file_name!r}\nafter the last name. {correct_file_name_end!r} would have been correct.", file_name_ending_problem)
                 if file_name.endswith(identified_ending):
                     if len(identified_ending) == 0:
-                        if not self.yes_no_retry("Entered string '' is empty. Is this correct?"):
+                        if not self.yes_no_retry("Entered string '' is empty. Is this correct?", file_name_ending_problem):
                             continue
                     else:
                         file_name = file_name[:-len(identified_ending)]
@@ -126,7 +135,7 @@ class FileNameParser:
 
         for student_name in student_names:
             if any(char.isdigit() for char in student_name):
-                if self.ask_retry(f"Is '{student_name}' really a student name? (y/n)?") != 'y':
+                if self.ask_retry(f"Is '{student_name}' really a student name? (y/n)?", f"'{student_name}' could not be interpreted as a student name.") != 'y':
                     self._printer.inform("Skip")
                     continue
 
@@ -147,7 +156,7 @@ class FileNameParser:
         while student is None:
             self._printer.inform(f"Please try a manual name for '{student_name}', e.g. parts of the name:")
             student = self._find_student_by_input()
-            if student is None and not self.yes_no_retry("Did not find the student. Do you want to try again?"):
+            if student is None and not self.yes_no_retry("Did not find the student. Do you want to try again?", f"Could not find student '{student_name}'"):
                 raise NameParsingFailed(f"Manual correction of name '{student_name}' did not succeed.")
 
         return student
