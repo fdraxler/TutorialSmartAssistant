@@ -88,14 +88,13 @@ class WorkflowUnzipCommand(Command):
         from py7zr import unpack_7zarchive
         shutil.register_unpack_format('7zip', ['.7z'], unpack_7zarchive)
 
-    def __call__(self, exercise_number, *args):
-        if "--skip" in args:
-            skip_existing = True
-            raise NotImplementedError()
-        else:
-            skip_existing = False
-
-        debug = "--debug" in args
+    def __call__(self, exercise_number, skip_existing=False):
+        if skip_existing is not False:
+            if skip_existing == "--skip":
+                skip_existing = True
+                raise NotImplementedError()
+            else:
+                raise ValueError(f"Did not understand second parameter {skip_existing}, should be '--skip' or nothing.")
 
         raw_folder = self._storage.get_raw_folder(exercise_number)
         preprocessed_folder = self._storage.get_preprocessed_folder(exercise_number)
@@ -197,23 +196,45 @@ class WorkflowUnzipCommand(Command):
                 if self.printer.ask("Continue? ([y]/n)") == "n":
                     break
 
-        if self.printer.yes_no("Would you like to send a confirmation email to all students that their files were correctly unzipped?", "n"):
-            self.printer.inform("Okay, let's go!")
-            with EMailSender(self._storage.email_account, self._storage.my_name) as sender:
+
+class WorkflowSendConfirmation(Command):
+    def __init__(self, printer, storage: InteractiveDataStorage):
+        super().__init__(printer, "workflow.confirm", ("w.confirm",), 1, 2)
+
+        self._storage = storage
+
+    def __call__(self, exercise_number, debug_flag=False):
+        preprocessed_folder = Path(self._storage.get_preprocessed_folder(exercise_number))
+
+        if debug_flag == "--debug":
+            debug_flag = True
+
+        if not preprocessed_folder.is_dir():
+            self.printer.error(f"The data for exercise {exercise_number} was not preprocessed. Run workflow.unzip first.")
+            return
+
+        with EMailSender(self._storage.email_account, self._storage.my_name) as sender:
+            for src_directory in preprocessed_folder.iterdir():
+                if src_directory.name.startswith("."):
+                    continue
+                with open(src_directory / "submission_meta.json", "rb") as file:
+                    submission_info = j_load(file)
                 new_line = '\n'
-                for hand_in in hand_in_notifications:
-                    if len(hand_in.problems) > 0:
-                        problem_string = "Our script reports bad news! These issues occurred when parsing the script:"
-                        problem_string += new_line.join("- " + problem for problem in hand_in.problems)
-                    else:
-                        problem_string = "There were no issues parsing the file name. You are awesome!"
 
-                    for student in hand_in.students:
-                        message = f"""Dear {hand_in.students.moodle_name},
+                problems = submission_info["problems"]
+                if len(problems) > 0:
+                    problem_string = "Assigning the names was not easy; these issues occurred when parsing:"
+                    problem_string += '\n'.join("- " + problem for problem in problems)
+                else:
+                    problem_string = "There were no issues parsing the file name. You are awesome!"
 
-you or a team mate uploaded {hand_in.hand_in!r} to Moodle as a hand in to sheet {exercise_number}.
+                students = [self._storage.get_student_by_muesli_id(muesli_student_id) for muesli_student_id in submission_info["muesli_student_ids"]]
+                for student in students:
+                    message = f"""Dear {student.muesli_name},
+    
+you or a team mate uploaded {submission_info["original_name"]!r} to Moodle as a hand in to sheet {exercise_number}.
 We associate this hand in to the following students:
-{new_line.join('- ' + student.name for student in hand_in.students)}
+{new_line.join('- ' + student.muesli_name for student in students)}
 
 {problem_string}
 
@@ -221,15 +242,15 @@ Have an awesome day!
 {self._storage.my_name}
 """
 
-                        self.printer.inform(f"Sending confirmation email to {student.moodle_name} ... ", end='')
+                    self.printer.inform(f"Sending confirmation email to {student.moodle_name} ... ", end='')
 
-                        try:
-                            sender.send_mail([student], message, f'[Fundamentals of Machine Learning] Your submission to {self._storage.muesli_data.exercise_prefix} {exercise_number} was received', debug=debug)
-                            self.printer.confirm("[Ok]")
-                        except BaseException as e:
-                            self.printer.error(f"[Err] - {e}")
+                    try:
+                        sender.send_mail([student], message, f'[Fundamentals of Machine Learning] Your submission to {self._storage.muesli_data.exercise_prefix} {exercise_number} was received', debug=debug_flag)
+                        self.printer.confirm("[Ok]")
+                    except BaseException as e:
+                        self.printer.error(f"[Err] - {e}")
 
-                    self.printer.inform("─" * 100)
+                self.printer.inform("─" * 100)
 
 
 class WorkflowPrepareCommand(Command):
