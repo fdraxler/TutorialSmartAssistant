@@ -1,6 +1,6 @@
 import os
 import shutil
-from collections import defaultdict
+from collections import defaultdict, namedtuple
 from json import dump
 from json import dump as json_save
 from json import load as j_load
@@ -82,23 +82,29 @@ class WorkflowDownloadCommand(Command):
 
 class WorkflowUnzipCommand(Command):
     def __init__(self, printer, storage):
-        super().__init__(printer, "workflow.unzip", ("w.uz",), 1, 2)
+        super().__init__(printer, "workflow.unzip", ("w.uz",), 1, 3)
         self._storage = storage
 
         from py7zr import unpack_7zarchive
         shutil.register_unpack_format('7zip', ['.7z'], unpack_7zarchive)
 
-    def __call__(self, exercise_number, skip_existing=False):
-        if skip_existing is not False:
-            if skip_existing == "--skip":
-                skip_existing = True
-                raise NotImplementedError()
-            else:
-                raise ValueError(f"Did not understand second parameter {skip_existing}, should be '--skip' or nothin.")
+    def __call__(self, exercise_number, *args):
+        if "--skip" in args:
+            skip_existing = True
+            raise NotImplementedError()
+        else:
+            skip_existing = False
+
+        debug = "--debug" in args
+
         raw_folder = self._storage.get_raw_folder(exercise_number)
         preprocessed_folder = self._storage.get_preprocessed_folder(exercise_number)
 
         multi_hand_in_tracker = defaultdict(list)
+
+        HandInTuple = namedtuple("HandInTuple", ["students", "hand_in", "problems"])
+        hand_in_notifications = []
+
         for file in os.listdir(raw_folder):
             if file.endswith((".zip", ".tar.gz", ".tar", ".7z")):
                 if file.endswith(".tar.gz"):
@@ -184,11 +190,46 @@ class WorkflowUnzipCommand(Command):
                     }
                     json_save(data, fp)
 
+                hand_in_notifications.append(HandInTuple(name_parser.students, file, problems))
                 self.printer.inform("─" * 100)
             elif file != "meta.json":
                 self.printer.error(f"File name is {file} -- no known compressed file!")
                 if self.printer.ask("Continue? ([y]/n)") == "n":
                     break
+
+        if self.printer.yes_no("Would you like to send a confirmation email to all students that their files were correctly unzipped?", "n"):
+            self.printer.inform("Okay, let's go!")
+            with EMailSender(self._storage.email_account, self._storage.my_name) as sender:
+                new_line = '\n'
+                for hand_in in hand_in_notifications:
+                    if len(hand_in.problems) > 0:
+                        problem_string = "Our script reports bad news! These issues occurred when parsing the script:"
+                        problem_string += new_line.join("- " + problem for problem in hand_in.problems)
+                    else:
+                        problem_string = "There were no issues parsing the file name. You are awesome!"
+
+                    for student in hand_in.students:
+                        message = f"""Dear {hand_in.students.moodle_name},
+
+you or a team mate uploaded {hand_in.hand_in!r} to Moodle as a hand in to sheet {exercise_number}.
+We associate this hand in to the following students:
+{new_line.join('- ' + student.name for student in hand_in.students)}
+
+{problem_string}
+
+Have an awesome day!
+{self._storage.my_name}
+"""
+
+                        self.printer.inform(f"Sending confirmation email to {student.moodle_name} ... ", end='')
+
+                        try:
+                            sender.send_mail([student], message, f'[Fundamentals of Machine Learning] Your submission to {self._storage.muesli_data.exercise_prefix} {exercise_number} was received', debug=debug)
+                            self.printer.confirm("[Ok]")
+                        except BaseException as e:
+                            self.printer.error(f"[Err] - {e}")
+
+                    self.printer.inform("─" * 100)
 
 
 class WorkflowPrepareCommand(Command):
