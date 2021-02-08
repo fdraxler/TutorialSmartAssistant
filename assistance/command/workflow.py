@@ -208,6 +208,8 @@ class WorkflowSendConfirmation(Command):
 
         if debug_flag == "--debug":
             debug_flag = True
+        else:
+            raise ValueError(f"Invalid argument {debug_flag!r}.")
 
         if not preprocessed_folder.is_dir():
             self.printer.error(f"The data for exercise {exercise_number} was not preprocessed. Run workflow.unzip first.")
