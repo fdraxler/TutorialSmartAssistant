@@ -208,7 +208,7 @@ class WorkflowSendConfirmation(Command):
 
         if debug_flag == "--debug":
             debug_flag = True
-        else:
+        elif debug_flag is not False:
             raise ValueError(f"Invalid argument {debug_flag!r}.")
 
         if not preprocessed_folder.is_dir():
