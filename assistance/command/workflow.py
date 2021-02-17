@@ -354,6 +354,12 @@ class WorkflowPrepareCommand(Command):
     def load_cross_assignments(self, exercise_number):
         assignment_file = Path(self._storage.get_exercise_folder(exercise_number)) / "cross-assignments.json"
         assignments = []
+        if not assignment_file.is_file():
+            if self.printer.yes_no("cross-assignments.json was not found. Do you want to continue anyway?", None):
+                return assignments
+            else:
+                raise NotImplementedError("Don't worry about this error")
+
         with open(assignment_file, "r") as file:
             data = j_load(file)
             for assignment in data:
