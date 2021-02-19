@@ -140,16 +140,6 @@ class WorkflowUnzipCommand(Command):
                     problems.append(f"Minor: Wrong archive format, please use '.zip' instead of '{extension}'.")
 
                 self.printer.inform("Found: " + ", ".join([student.muesli_name for student in name_parser.students]))
-                if len(problems) > 0:
-                    self.printer.inform()
-                    self.printer.warning("While normalizing name there were some problems:")
-                    self.printer.indent()
-                    for problem in problems:
-                        self.printer.warning("- " + problem)
-                    self.printer.outdent()
-                    if self.printer.ask("Continue? ([y]/n)") == "n":
-                        break
-
                 try:
                     self.printer.inform(f"Unpacking {file} ... ", end="")
                     try:
@@ -169,14 +159,24 @@ class WorkflowUnzipCommand(Command):
                                     self.printer.warning(f"... {type} failed!")
 
                         if problem is None:
+                            problems.append("Could not unzip zip file. Copying zip file to target.")
                             self.printer.error(f"Fatal error: {file} could not be unpacked!")
                             self.printer.error("[ERR]")
                             shutil.copy(source_path, target_path)
                             self.printer.inform("Copied zip file to target.")
-                            if self.printer.ask("Continue? ([y]/n)") == "n":
-                                break
                         else:
                             problems.append(problem)
+
+                    if len(problems) > 0:
+                        self.printer.inform()
+                        self.printer.warning("While normalizing name there were some problems:")
+                        self.printer.indent()
+                        for problem in problems:
+                            self.printer.warning("- " + problem)
+                        self.printer.outdent()
+                        if self.printer.ask("Continue? ([y]/n)") == "n":
+                            break
+
                     self.printer.confirm("[OK]")
                 except shutil.ReadError:
                     self.printer.error(f"Not supported archive-format: '{extension}'")
