@@ -9,9 +9,10 @@ def parse_command(command):
         protected = False
         buffer = list()
         parts = list()
-        for i, c in enumerate(command):
+        for c in command:
             if c == '"':
                 protected = not protected
+                continue
 
             if c == " " and not protected:
                 parts.append(''.join(buffer))

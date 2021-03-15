@@ -82,7 +82,8 @@ class FileNameParser:
     def _strip_suffix(self):
         exercise_number = self._exercise_number
         file_name = self._file_name
-        correct_file_name_end = f'_ex{exercise_number}'
+        assert exercise_number == "Final Project"
+        correct_file_name_end = f'_final-project'
 
         self._printer.inform("Checking file name suffix.")
 
