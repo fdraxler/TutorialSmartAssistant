@@ -48,6 +48,19 @@ class WorkflowDownloadCommand(Command):
             submissions = [submission for submission in submissions if submission.moodle_student_id in all_students]
             self.printer.inform(f"Found {len(submissions)} submissions")
 
+            # Check for duplicates
+            existing_submissions = {}
+            for submission in submissions:
+                if submission.file_name in existing_submissions:
+                    original_student = self._storage.get_student_by_moodle_id(existing_submissions[submission.file_name].moodle_student_id)
+                    replace_student = self._storage.get_student_by_moodle_id(submission.moodle_student_id)
+                    self.printer.warning(f"Duplicate file {submission.file_name}. Original was uploaded by {original_student.moodle_name}, this was uploaded by {replace_student.moodle_name}")
+                    if self.printer.yes_no("Do you want to replace the original file?", "n"):
+                        existing_submissions[submission.file_name] = submission
+                else:
+                    existing_submissions[submission.file_name] = submission
+            submissions = list(existing_submissions.values())
+
             folder = os.path.join(
                 self._storage.storage_config.root,
                 self._storage.storage_config.submission_root,
