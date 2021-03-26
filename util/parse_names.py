@@ -77,7 +77,7 @@ class FileNameParser:
 
     @property
     def correctly_named_file(self):
-        return "_".join(sorted("-".join(replace_special_chars(student.muesli_name).split(" ")) for student in self.students)) + f"_ex{self._exercise_number}.zip"
+        return "_".join(sorted("-".join(replace_special_chars(student.muesli_name).split(" ")) for student in self.students)) + f"_final-project.zip"
 
     def _strip_suffix(self):
         exercise_number = self._exercise_number

@@ -318,7 +318,8 @@ class WorkflowPrepareCommand(Command):
 
                 target_directory = working_folder / src_directory.name
                 if not target_directory.is_dir():
-                    shutil.copytree(src_directory, target_directory)
+                    target_directory.mkdir(parents=True)
+                    shutil.copy(src_directory / "submission_meta.json", target_directory / "submission_meta.json")
                 if can_generate_feedback and target_directory.is_dir():
                     self._storage.generate_feedback_template(exercise_number, target_directory, self.printer)
 
@@ -421,10 +422,10 @@ class WorkflowConsolidate(Command):
             target_directory = finished_folder / directory.name
             polisher.save_meta_to_folder(target_directory)
 
-            feedback_directory = target_directory / "Original and Comments"
+            feedback_directory = target_directory / "Logs"
             if not feedback_directory.is_dir():
                 feedback_directory.mkdir()
-            copy_files(directory, feedback_directory, filter_and(filter_name_not_end("Feedback"), filter_name_not_end("submission_meta")))
+            copy_files(directory / "Logs", feedback_directory, filter_and(filter_name_not_end("Feedback"), filter_name_not_end("submission_meta")))
             self.printer.confirm("[Ok]")
 
 
@@ -530,16 +531,13 @@ class WorkflowSendMail(Command):
                     for student in students:
                         message.append(f"• {student.muesli_name} ({student.muesli_mail})")
                     message.append("")
-                    message.append("Tutor notes are in Feedback.txt, with explanations about where you did really well and where you did not.")
+                    message.append("Overview is in Feedback.txt, the logs are in Logs.zip.")
                     message.append("")
-                    if len(list(directory.glob("Original and Comments/Cross by *"))) > 0:
-                        message.append("You also got feedback from another student group. Be sure to check it out.")
-                        message.append("")
                     message.append(f"LG {self._storage.my_name_alias}")
                     message = "\n".join(message)
 
-                    shutil.make_archive(directory / "Comments", "zip", directory, "Original and Comments")
-                    archive_zip = directory / "Comments.zip"
+                    shutil.make_archive(directory / "Logs", "zip", directory, "Logs")
+                    archive_zip = directory / "Logs.zip"
 
                     student_names = ', '.join([student.muesli_name for student in students])
                     self.printer.inform(f"Sending feedback to {student_names} ... ", end='')
