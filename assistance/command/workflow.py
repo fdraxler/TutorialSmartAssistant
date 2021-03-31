@@ -7,6 +7,7 @@ from json import load as j_load
 from os.path import join as p_join
 from pathlib import Path
 from types import SimpleNamespace
+from typing import List, Dict
 from zipfile import BadZipFile
 
 import numpy as np
@@ -18,7 +19,7 @@ from moodle.api import MoodleSession
 from muesli.api import MuesliSession
 from util.feedback import FeedbackPolisher
 from util.files import copy_files, filter_and, filter_name_end, filter_name_not_end, filter_not, filter_or
-from util.parse_names import FileNameParser
+from util.parse_names import FileNameParser, normalized_name
 
 
 class WorkflowDownloadCommand(Command):
@@ -93,6 +94,170 @@ class WorkflowDownloadCommand(Command):
                 self.printer.error(str(e))
 
 
+class WorkflowParseNamesCommand(Command):
+    def __init__(self, printer, storage: InteractiveDataStorage):
+        super().__init__(printer, "workflow.parse", ("w.parse",), 1, 1)
+        self._storage = storage
+
+    def __call__(self, exercise_number):
+        ex_folder = Path(self._storage.get_exercise_folder(exercise_number))
+        name_file = ex_folder / "names.json"
+
+        zip_file_names = self.find_zip_files(exercise_number)
+
+        if name_file.is_file():
+            with open(name_file, "r") as file:
+                names = j_load(file)
+            problems = [problem for prob_list in self.find_errors(names, zip_file_names) for problem in prob_list]
+
+            self.printer.warning(f"{len(names)} names were already parsed.")
+            self.printer.inform("You have the following options:")
+            self.printer.indent()
+            self.printer.inform("a) Restart from scratch,")
+            self.printer.inform(f"b) Resolve conflicts and missing/ignored files ({len(problems)}),")
+            self.printer.inform(f"c) Abort.")
+            self.printer.outdent()
+            while True:
+                answer = self.printer.ask("Please choose an option (a/b/c):")
+                if answer in "abc":
+                    if answer == "a":
+                        names = {}
+                    elif answer == "b":
+                        pass
+                    elif answer == "c":
+                        return
+                    break
+        else:
+            names = {}
+
+        if len(names) == 0:
+            for file in zip_file_names:
+                names[file] = self.parse_files_from_file(file, exercise_number)
+
+        self.fix_errors(names, exercise_number)
+
+        with open(name_file, "w") as file:
+            json_save(names, file)
+
+    def find_errors(self, names: Dict[str, dict], zip_file_names: List[str]):
+        handled_files = set()
+        handled_people: Dict[int, List[str]] = defaultdict(list)
+
+        removed_files = []
+        for file, file_info in names.items():
+            if file not in zip_file_names:
+                removed_files.append(file)
+
+            handled_files.add(file)
+            for person in file_info["moodle_student_id"]:
+                handled_people[person].append(file)
+
+        people_double_assigned = []
+        for person, files in handled_people.items():
+            if len(files) > 1:
+                people_double_assigned.append((person, files))
+
+        unparsed_files = []
+        for zip_file_name in zip_file_names:
+            if zip_file_name not in handled_files:
+                unparsed_files.append(zip_file_name)
+
+        return removed_files, people_double_assigned, unparsed_files
+
+    def fix_errors(self, names, exercise_number):
+        while True:
+            zip_file_names = self.find_zip_files(exercise_number)
+            removed_files, people_double_assigned, unparsed_files = self.find_errors(names, zip_file_names)
+            if len(removed_files) > 0:
+                self.printer.warning(f"{len(removed_files)} are in the list of files that do not exist on the file system:")
+                self.printer.indent()
+                for removed_file in removed_files:
+                    self.printer.warning(f"- {removed_file}")
+                self.printer.outdent()
+                if self.printer.yes_no("Do you want to remove them from the list of files?"):
+                    for removed_file in removed_files:
+                        del names[removed_file]
+                continue
+
+            if len(unparsed_files) > 0:
+                self.printer.warning(f"{len(removed_files)} are on the file system, but not parsed:")
+                self.printer.indent()
+                for unparsed_file in unparsed_files:
+                    self.printer.warning(f"- {unparsed_file}")
+                self.printer.outdent()
+                if self.printer.yes_no("Do you want to parse them now?"):
+                    for file in unparsed_files:
+                        names[file] = self.parse_files_from_file(file, exercise_number)
+                else:
+                    self.printer.ask("Please remove the files from the raw folder and hit enter.")
+                continue
+
+            if len(people_double_assigned) > 0:
+                self.printer.warning(f"{len(people_double_assigned)} were parsed for more than one submission.")
+                for muesli_student_id, files in people_double_assigned:
+                    self.printer.inform(f"Student: {self._storage.get_student_by_muesli_id(muesli_student_id)}")
+                    self.printer.inform("Please select the correct assignment:")
+                    self.printer.indent()
+                    for idx, file in enumerate(files):
+                        self.printer.inform(f"{idx}) {file}")
+                    self.printer.outdent()
+                    while True:
+                        try:
+                            selected_file = files[int(self.printer.ask("Correct assignment: "))]
+                            break
+                        except (ValueError, KeyError):
+                            pass
+
+                    for file_name in files:
+                        if file_name == selected_file:
+                            pass
+                        else:
+                            names[file_name]["muesli_student_ids"].remove(muesli_student_id)
+
+    def find_zip_files(self, exercise_number):
+        raw_folder = self._storage.get_raw_folder(exercise_number)
+        zip_file_names = []
+        for file_name in os.listdir(raw_folder):
+            if is_zip_file(file_name):
+                zip_file_names.append(file_name)
+            elif file_name != "meta.json":
+                self.printer.error(f"File name is {file_name} -- no known compressed file!")
+                if not self.printer.yes_no("Ignore and continue?"):
+                    break
+        return zip_file_names
+
+    def parse_files_from_file(self, file, exercise_number):
+        if file.endswith(".tar.gz"):
+            extension = ".tar.gz"
+            file_name = file[:len(extension)]
+        else:
+            file_name, extension = os.path.splitext(file)
+
+        name_parser = FileNameParser(self.printer, self._storage, file_name, exercise_number)
+        problems = list(name_parser.problems)
+
+        if not extension.endswith("zip"):
+            problems.append(f"Minor: Wrong archive format, please use '.zip' instead of '{extension}'.")
+
+        self.printer.inform("Found: " + ", ".join([student.muesli_name for student in name_parser.students]))
+        if len(problems) > 0:
+            self.printer.inform()
+            self.printer.warning("While normalizing name there were some problems:")
+            self.printer.indent()
+            for problem in problems:
+                self.printer.warning("- " + problem)
+            self.printer.outdent()
+            self.printer.ask("Hit enter to continue")
+
+        self.printer.confirm("[OK]")
+        self.printer.inform("─" * 100)
+        return {
+            "original_name": file,
+            "problems": problems,
+            "muesli_student_ids": [student.muesli_student_id for student in name_parser.students]
+        }
+
+
 class WorkflowUnzipCommand(Command):
     def __init__(self, printer, storage):
         super().__init__(printer, "workflow.unzip", ("w.uz",), 1, 3)
@@ -105,109 +270,78 @@ class WorkflowUnzipCommand(Command):
         if skip_existing is not False:
             if skip_existing == "--skip":
                 skip_existing = True
-                raise NotImplementedError()
             else:
                 raise ValueError(f"Did not understand second parameter {skip_existing}, should be '--skip' or nothing.")
 
-        raw_folder = self._storage.get_raw_folder(exercise_number)
-        preprocessed_folder = self._storage.get_preprocessed_folder(exercise_number)
+        ex_folder = Path(self._storage.get_exercise_folder(exercise_number))
+        name_file = ex_folder / "names.json"
 
-        multi_hand_in_tracker = defaultdict(list)
+        with open(name_file, "r") as file:
+            names = j_load(file)
 
-        HandInTuple = namedtuple("HandInTuple", ["students", "hand_in", "problems"])
-        hand_in_notifications = []
+        raw_folder = Path(self._storage.get_raw_folder(exercise_number))
+        preprocessed_folder = Path(self._storage.get_preprocessed_folder(exercise_number))
 
-        for file in os.listdir(raw_folder):
-            if file.endswith((".zip", ".tar.gz", ".tar", ".7z")):
-                if file.endswith(".tar.gz"):
-                    extension = ".tar.gz"
-                    file_name = file[:len(extension)]
+        for file, data in names.items():
+            problems = data["problems"]
+            zip_path = raw_folder / file
+            target_path = preprocessed_folder / normalized_name(self._storage.get_student_by_muesli_id(muesli_id) for muesli_id in data["muesli_student_ids"])
+
+            if not zip_path.is_file():
+                self.printer.error(f"File {file} does not exist!")
+                break
+
+            if target_path.exists():
+                self.printer.warning(f"Target path {target_path.name} exists!")
+                if skip_existing:
+                    self.printer.ask("Skipping. Hit enter to continue.")
+                    continue
                 else:
-                    file_name, extension = os.path.splitext(file)
-
-                source_path = os.path.join(raw_folder, file)
-                name_parser = FileNameParser(self.printer, self._storage, file_name, exercise_number)
-                problems = list(name_parser.problems)
-
-                if name_parser.normalized_name in multi_hand_in_tracker:
-                    problems.append(f"There appear to be more than one submission by your group. We overwrote the contents of {', '.join(map(repr, multi_hand_in_tracker[name_parser.normalized_name]))} with {file}.")
-
-                    self.printer.warning(f"A submission by {name_parser.normalized_name} was already extracted!")
-                    self.printer.warning("Previously extracted file names are:")
-                    self.printer.indent()
-                    for prev_name in multi_hand_in_tracker[name_parser.normalized_name]:
-                        self.printer.warning(f" - {prev_name}")
-                    self.printer.outdent()
-                    self.printer.inform("You can manually delete the .zip file from the raw folder or ignore this message.")
-                    if not self.printer.yes_no("Continue?"):
-                        break
-                multi_hand_in_tracker[name_parser.normalized_name].append(file)
-
-                target_path = os.path.join(preprocessed_folder, name_parser.normalized_name)
-                if os.path.isdir(target_path):
-                    self.printer.warning(f"Target path {name_parser.normalized_name} exists!")
-                    if not self.printer.yes_no("Continue?"):
-                        break
-
-                if not extension.endswith("zip"):
-                    problems.append(f"Minor: Wrong archive format, please use '.zip' instead of '{extension}'.")
-
-                self.printer.inform("Found: " + ", ".join([student.muesli_name for student in name_parser.students]))
-                try:
-                    self.printer.inform(f"Unpacking {file} ... ", end="")
-                    try:
-                        shutil.unpack_archive(source_path, target_path)
-                    except (BadZipFile, NotImplementedError) as e:
-                        self.printer.warning("")
-                        self.printer.warning(f"Detected bad zip file: {e}")
-                        self.printer.warning(f"Trying different archive types ...")
-                        with self.printer:
-                            problem = None
-                            for type in ("7z", "tar", "gztar", "bztar", "xztar"):
-                                try:
-                                    shutil.unpack_archive(source_path, target_path, format=type)
-                                    problem = f"Wrong file extension provided - this file was actually a {type}!"
-                                    break
-                                except:
-                                    self.printer.warning(f"... {type} failed!")
-
-                        if problem is None:
-                            problems.append("Could not unzip zip file. Copying zip file to target.")
-                            self.printer.error(f"Fatal error: {file} could not be unpacked!")
-                            self.printer.error("[ERR]")
-                            shutil.copy(source_path, target_path)
-                            self.printer.inform("Copied zip file to target.")
-                        else:
-                            problems.append(problem)
-
-                    if len(problems) > 0:
-                        self.printer.inform()
-                        self.printer.warning("While normalizing name there were some problems:")
-                        self.printer.indent()
-                        for problem in problems:
-                            self.printer.warning("- " + problem)
-                        self.printer.outdent()
-                        if self.printer.ask("Continue? ([y]/n)") == "n":
-                            break
-
-                    self.printer.confirm("[OK]")
-                except shutil.ReadError:
-                    self.printer.error(f"Not supported archive-format: '{extension}'")
-
-                with open(os.path.join(target_path, "submission_meta.json"), 'w', encoding='utf-8') as fp:
-                    data = {
-                        "original_name": file,
-                        "problems": problems,
-                        "muesli_student_ids": [student.muesli_student_id for student in name_parser.students]
-                    }
-                    json_save(data, fp)
-
-                hand_in_notifications.append(HandInTuple(name_parser.students, file, problems))
-                self.printer.inform("─" * 100)
-            elif file != "meta.json":
-                self.printer.error(f"File name is {file} -- no known compressed file!")
-                if self.printer.ask("Continue? ([y]/n)") == "n":
+                    self.printer.error("Please remove or retry with '--skip'")
                     break
+
+            if not file.endswith("zip"):
+                extension = zip_path.suffix
+                problems.append(f"Minor: Wrong archive format, please use '.zip' instead of '{extension}'.")
+
+            try:
+                self.printer.inform(f"Unpacking {file} ... ", end="")
+                try:
+                    shutil.unpack_archive(zip_path, target_path)
+                except (BadZipFile, NotImplementedError) as e:
+                    self.printer.warning("")
+                    self.printer.warning(f"Detected bad zip file: {e}")
+                    self.printer.warning(f"Trying different archive types ...")
+                    with self.printer:
+                        problem = None
+                        for type in ("7z", "tar", "gztar", "bztar", "xztar"):
+                            try:
+                                shutil.unpack_archive(zip_path, target_path, format=type)
+                                problem = f"Wrong file extension provided - this file was actually a {type}!"
+                                break
+                            except:
+                                self.printer.warning(f"... {type} failed!")
+
+                    if problem is None:
+                        problems.append("Could not unzip zip file. Copying zip file to target.")
+                        self.printer.error(f"Fatal error: {file} could not be unpacked!")
+                        self.printer.error("[ERR]")
+                        shutil.copy(zip_path, target_path)
+                        self.printer.inform("Copied zip file to target.")
+                    else:
+                        problems.append(problem)
+
+                self.printer.confirm("[OK]")
+            except shutil.ReadError:
+                self.printer.error(f"Not supported archive-format: '{extension}'")
+                problems.append(f"Not supported archive-format: '{extension}'")
+
+            with open(target_path / "submission_meta.json", 'w') as fp:
+                json_save(data, fp)
+
+
+def is_zip_file(file):
+    return file.endswith((".zip", ".tar.gz", ".tar", ".7z"))
 
 
 class WorkflowSendConfirmation(Command):

@@ -466,7 +466,7 @@ class InteractiveDataStorage:
 
         return list(result)
 
-    def get_student_by_muesli_id(self, muesli_id):
+    def get_student_by_muesli_id(self, muesli_id) -> Student:
         result = None
         for student in self.all_students:
             if student.muesli_student_id == muesli_id:
