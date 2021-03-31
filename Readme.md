@@ -9,23 +9,24 @@ Version used for Fundamentals of Machine Learning in winter 2020.
 `XX` is the name of the exercise, e.g. 01a, 01b, ….
 
 1. `w.down XX`  downloads all submissions to moodle 
-2. `w.unzip XX` matches the zip filenames to moodle and muesli ids and unzips the solutions downloaded from moodle.
+2. `w.parse XX` parses the student names from the file. 
+3. `w.unzip XX` matches the zip filenames to moodle and muesli ids and unzips the solutions downloaded from moodle.
     1. When the names can't be matched, you need to help the system.
     2. Any problems in the naming will be reported and added as "problems" to the unzipped hand in. This is later included in the feedback file so that students know.
-3. Make sure to get the `cross-assignments.json` file for the sheet from the responsible tutor.
-4. `w.prep XX [YY]` filters the submissions to students assigned to you and prepares the unzipped files for correction.
+4. Make sure to get the `cross-assignments.json` file for the sheet from the responsible tutor.
+5. `w.prep XX [YY]` filters the submissions to students assigned to you and prepares the unzipped files for correction.
     1. When `YY` is passed, for each group the submission(s) for the sheet `YY` are identified and copied. This is the basis for correction. This also identifies possible cross feedbacks and copies them to the directory.
     2. When the exercise has been enabled in Muesli, a feedback template is generated that lists the exercises and the maximum number of points
-5. Now go through the hand ins and correct them
+6. Now go through the hand ins and correct them
     1. Whatever changes you make in each solution will be visible to the students.
     2. Write your feedback into `Feedback.txt` -- this is parsed for getting the points in moodle.
         1. Write `[@-X]` when you deduct points, `X` can be a decimal like `1.5`.
         2. Write `[@+X]` for bonus points when the solution is especially nice.
     3. If you want to make detailed comments, copy the `whatever-commented.ipynb` to `whatever-corrected.ipynb` and add changes there, i.e. using `<span style="color:red;font-weight:bold">Comment</span>` in Markdown. Make sure to export this file to `whatever-corrected.html`.
     4. Look at the cross feedback. When it meets the requirements, open up the cross feedback point page in Müsli and enter the information directly. Make sure to keep the page open for short time, otherwise you might overwrite other tutor's input.
-6. `w.cons XX` parses the information in the corrected directories and copies them.
-7. `w.up XX` sends the corrected directories as zip files uploads the achieved points to Müsli.
-8. `w.send XX [--debug]` sends the Feedback and all files in the corrected submissions to all students via mail. The debug flag sends all emails only to your own address.
+7. `w.cons XX` parses the information in the corrected directories and copies them.
+8. `w.up XX` sends the corrected directories as zip files uploads the achieved points to Müsli.
+9. `w.send XX [--debug]` sends the Feedback and all files in the corrected submissions to all students via mail. The debug flag sends all emails only to your own address.
 
 
 ### Cross Assignments
