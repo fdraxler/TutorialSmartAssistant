@@ -93,7 +93,7 @@ class AssignTutorsCommand(Command):
         self.printer.inform()
 
         remaining_groups = len(groups)
-        group_counts = [5, 5, 20, 20, 20, 19, 19]
+        group_counts = []
         for i, tutor_name in enumerate(tutor_names[:-1]):
             while True:
                 try:
@@ -125,7 +125,7 @@ class AssignTutorsCommand(Command):
         # Store assignments in ignore lists which can be sent to tutors to be put into their students directory
         meta_dir = Path(self._storage.storage_config.root) / "__meta__"
         tutors_dir = Path(self._storage.storage_config.root) / "Tutors"
-        assert not tutors_dir.is_dir(), "Recrating tutors' directories, but they exist"
+        assert not tutors_dir.is_dir(), "Recreating tutors' directories, but they exist"
         tutors_dir.mkdir()
         for tutor_name, own_groups in tutor_groups.items():
             tutor_dir = tutors_dir / tutor_name / "__meta__"
