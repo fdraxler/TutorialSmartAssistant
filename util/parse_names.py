@@ -17,6 +17,10 @@ class NameParsingFailed(Exception):
     pass
 
 
+def normalized_name(students):
+    return ", ".join(sorted(student.muesli_name for student in students))
+
+
 class FileNameParser:
     def __init__(self, printer: ConsoleFormatter, storage: InteractiveDataStorage, file_name: str, exercise_number: str):
         self._printer = printer
@@ -73,7 +77,8 @@ class FileNameParser:
 
     @property
     def normalized_name(self):
-        return ", ".join(sorted(student.muesli_name for student in self.students))
+        students = self.students
+        return self.normalized_name(students)
 
     @property
     def correctly_named_file(self):
