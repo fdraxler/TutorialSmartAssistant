@@ -25,6 +25,13 @@ def filter_not(filter):
     return and_test
 
 
+def filter_file_ext(extension: str):
+    def ext_matches(path: Path):
+        return path.suffix == extension
+
+    return ext_matches
+
+
 def filter_name_end(name_end: str):
     def ends_with(path: Path):
         return os.path.splitext(path)[0].endswith(name_end)

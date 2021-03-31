@@ -18,7 +18,7 @@ from mail.mail_out import EMailSender
 from moodle.api import MoodleSession
 from muesli.api import MuesliSession
 from util.feedback import FeedbackPolisher
-from util.files import copy_files, filter_and, filter_name_end, filter_name_not_end, filter_not, filter_or
+from util.files import copy_files, filter_and, filter_name_end, filter_name_not_end, filter_not, filter_or, filter_file_ext
 from util.parse_names import FileNameParser, normalized_name
 
 
@@ -461,6 +461,7 @@ class WorkflowPrepareCommand(Command):
                 target_directory = working_folder / src_directory.name
                 if not target_directory.is_dir():
                     target_directory.mkdir(parents=True)
+                    copy_files(src_directory, target_directory, filter_file_ext(".pdf"))
                     shutil.copy(src_directory / "submission_meta.json", target_directory / "submission_meta.json")
                 if can_generate_feedback and target_directory.is_dir():
                     self._storage.generate_feedback_template(exercise_number, target_directory, self.printer)
