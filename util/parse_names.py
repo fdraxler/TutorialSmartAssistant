@@ -89,8 +89,6 @@ class FileNameParser:
         file_name = self._file_name
         correct_file_name_end = f'_ex{exercise_number}'
 
-        self._printer.inform("Checking file name suffix.")
-
         wrong_ends = [
             (f"-ex{exercise_number}", f"Used '-' instead of '_' to mark end of filename. Please use '{correct_file_name_end}'"),
             (f"_ex{exercise_number.lstrip('0')}", f"The exercise number should be formatted with two digits."),

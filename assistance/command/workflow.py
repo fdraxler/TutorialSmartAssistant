@@ -1,6 +1,6 @@
 import os
 import shutil
-from collections import defaultdict, namedtuple
+from collections import defaultdict
 from json import dump
 from json import dump as json_save
 from json import load as j_load
@@ -130,14 +130,20 @@ class WorkflowParseNamesCommand(Command):
         else:
             names = {}
 
-        if len(names) == 0:
-            for file in zip_file_names:
-                names[file] = self.parse_files_from_file(file, exercise_number)
+        try:
+            if len(names) == 0:
+                for file in zip_file_names:
+                    names[file] = self.parse_names_from_file(file, exercise_number)
 
-        self.fix_errors(names, exercise_number)
+            self.fix_errors(names, exercise_number)
+        except:
+            if self.printer.yes_no("An error occurred. Do you want to store the current state?"):
+                with open(name_file, "w") as file:
+                    json_save(names, file, indent=4)
+            raise
 
         with open(name_file, "w") as file:
-            json_save(names, file)
+            json_save(names, file, indent=4)
 
     def find_errors(self, names: Dict[str, dict], zip_file_names: List[str]):
         handled_files = set()
@@ -149,7 +155,7 @@ class WorkflowParseNamesCommand(Command):
                 removed_files.append(file)
 
             handled_files.add(file)
-            for person in file_info["moodle_student_id"]:
+            for person in file_info["muesli_student_ids"]:
                 handled_people[person].append(file)
 
         people_double_assigned = []
@@ -187,13 +193,13 @@ class WorkflowParseNamesCommand(Command):
                 self.printer.outdent()
                 if self.printer.yes_no("Do you want to parse them now?"):
                     for file in unparsed_files:
-                        names[file] = self.parse_files_from_file(file, exercise_number)
+                        names[file] = self.parse_names_from_file(file, exercise_number)
                 else:
                     self.printer.ask("Please remove the files from the raw folder and hit enter.")
                 continue
 
             if len(people_double_assigned) > 0:
-                self.printer.warning(f"{len(people_double_assigned)} were parsed for more than one submission.")
+                self.printer.warning(f"{len(people_double_assigned)} names were parsed for more than one submission.")
                 for muesli_student_id, files in people_double_assigned:
                     self.printer.inform(f"Student: {self._storage.get_student_by_muesli_id(muesli_student_id)}")
                     self.printer.inform("Please select the correct assignment:")
@@ -214,6 +220,8 @@ class WorkflowParseNamesCommand(Command):
                         else:
                             names[file_name]["muesli_student_ids"].remove(muesli_student_id)
 
+            break
+
     def find_zip_files(self, exercise_number):
         raw_folder = self._storage.get_raw_folder(exercise_number)
         zip_file_names = []
@@ -226,7 +234,7 @@ class WorkflowParseNamesCommand(Command):
                     break
         return zip_file_names
 
-    def parse_files_from_file(self, file, exercise_number):
+    def parse_names_from_file(self, file, exercise_number):
         if file.endswith(".tar.gz"):
             extension = ".tar.gz"
             file_name = file[:len(extension)]
