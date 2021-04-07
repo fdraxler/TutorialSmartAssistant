@@ -10,7 +10,7 @@ def parse_command(command):
         buffer = list()
         parts = list()
         for c in command:
-            if c == '"':
+            if c == '"' or c == "'":
                 protected = not protected
                 continue
 

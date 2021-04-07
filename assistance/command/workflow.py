@@ -428,8 +428,11 @@ class WorkflowPrepareCommand(Command):
         preprocessed_folder = Path(self._storage.get_preprocessed_folder(exercise_number))
         working_folder = Path(self._storage.get_working_folder(exercise_number))
 
-        if not preprocessed_folder.is_dir():
-            self.printer.error(f"The data for exercise {exercise_number} was not preprocessed. Run workflow.unzip first.")
+        if not preprocessed_folder.exists():
+            self.printer.error(f"The data for exercise {exercise_number} was not preprocessed. Run workflow.unzip first:")
+            self.printer.indent()
+            self.printer.warning(str(preprocessed_folder))
+            self.printer.outdent()
             return
 
         can_generate_feedback = self.load_muesli_data(exercise_number)

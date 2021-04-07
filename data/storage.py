@@ -23,7 +23,7 @@ def ensure_folder_exists(path):
 class PhysicalDataStorage:
     def __init__(self, storage_config):
         self._storage_config = storage_config
-        self._root = self._storage_config.root
+        self._root = os.path.abspath(self._storage_config.root)
         self._meta_path = ensure_folder_exists(p_join(self._root, "__meta__"))
 
     def save_my_name(self, my_name):
