@@ -172,7 +172,8 @@ class InteractiveDataStorage:
             self._init_tutorials(muesli)
             self._init_students(muesli)
             self._init_presented_scores(muesli)
-        self._init_moodle_attributes(moodle)
+        if moodle is not None:
+            self._init_moodle_attributes(moodle)
 
         self.__instance.imported_students = self.physical_storage.load_exchanged_students('imported')
         self.__instance.exported_students = self.physical_storage.load_exchanged_students('exported')
@@ -533,6 +534,12 @@ class InteractiveDataStorage:
         return os.path.join(
             self.get_exercise_folder(exercise_number),
             self.storage_config.finished_folder
+        )
+
+    def get_cross_folder(self, exercise_number):
+        return os.path.join(
+            self.get_exercise_folder(exercise_number),
+            self.storage_config.cross_folder
         )
 
     def update_exercise_meta(self, muesli, exercise_number):

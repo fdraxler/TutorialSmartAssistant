@@ -50,6 +50,7 @@ class MuesliSession(BaseSession):
 
     def login(self):
         self._session = Session()
+        self._session.verify = False
         login_url = 'https://muesli.mathi.uni-heidelberg.de/user/login'
         response = self._session.post(login_url, data={
             'email': self._account.email,

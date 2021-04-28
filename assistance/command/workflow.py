@@ -724,20 +724,29 @@ class WorkflowSendCrossTask(Command):
             _parse_arguments(args)
         if debug:
             self.printer.confirm("Running in debug mode.")
-        raw_folder = self._storage.get_raw_folder(exercise_number)
 
         assignment_file = p_join(self._storage.get_exercise_folder(exercise_number), "cross-assignments.json")
 
         assert not os.path.isfile(assignment_file), "You already sent cross-feedback tasks to people"
 
+        ex_folder = Path(self._storage.get_exercise_folder(exercise_number))
+        name_file = ex_folder / "names.json"
+        with open(name_file, "r") as file:
+            names = j_load(file)
+
+        raw_folder = Path(self._storage.get_raw_folder(exercise_number))
+        cross_folder = Path(self._storage.get_cross_folder(exercise_number))
+        if cross_folder.is_dir():
+            if len(list(cross_folder.iterdir())) > 0:
+                raise ValueError(f"{cross_folder} exists and is not empty.")
+        else:
+            cross_folder.mkdir()
+
         # Collect all submission files and corresponding uploader
         submissions = []
-        with open(p_join(raw_folder, "meta.json")) as file:
-            submission_list = j_load(file)
-            for submission in submission_list:
-                sub_info = SimpleNamespace(**submission)
-                student = self._storage.get_student_by_moodle_id(sub_info.moodle_student_id)
-                submissions.append((student, sub_info.file_name))
+        for file_name, data in names.items():
+            file_path = raw_folder / file_name
+            submissions.append((file_path, data["muesli_student_ids"]))
 
         # Find a permutation without self-assignment
         while True:
@@ -747,39 +756,16 @@ class WorkflowSendCrossTask(Command):
 
         with open(assignment_file, "w") as file:
             data = []
-            for submission_idx, (assigned_to_student, _) in zip(new_order, submissions):
-                creator_student, assigned_file = submissions[submission_idx]
+
+            for src_idx, tgt_idx in enumerate(new_order):
+                src_file, src_students = submissions[src_idx]
+                tgt_file, tgt_students = submissions[tgt_idx]
+
+                shutil.copyfile(src_file, cross_folder / tgt_file.name)
+
                 data.append({
-                    "submission": assigned_file,
-                    "submission_by_muesli_student_id": creator_student.muesli_student_id,
-                    "assigned_to_muesli_student_id": assigned_to_student.muesli_student_id,
+                    "submission": src_file.name,
+                    "submission_by_muesli_student_ids": src_students,
+                    "assigned_to_muesli_student_ids": tgt_students,
                 })
             json_save(data, file)
-
-        # todo Create directory with permuted zip file names
-        # todo Then send mail that cross feedback assignment is available
-        with EMailSender(self._storage.email_account, self._storage.my_name) as sender:
-            for submission_idx, (student, _) in zip(new_order, submissions):
-                creator_student, assigned_file = submissions[submission_idx]
-                message = f"""Dear {student.moodle_name},
-
-please provide cross-feedback to the appended submission by another student group.
-For instructions, check the current Exercise Sheet.
-Remember that you have to give cross-feedback at least four times over the semester.
-
-Have an awesome day!
-{self._storage.my_name}
-"""
-
-                self.printer.inform(f"Sending cross-feedback task to {student.moodle_name} ... ", end='')
-
-                tmp_path = p_join(self._storage.get_exercise_folder(exercise_number), "cross-feedback-task.zip")
-                try:
-                    assigned_path = p_join(raw_folder, assigned_file)
-                    shutil.copy(assigned_path, tmp_path)
-                    sender.send_mail([student], message, f'[Fundamentals of Machine Learning] Your Cross-Feedback Task {self._storage.muesli_data.exercise_prefix} {exercise_number}', tmp_path, debug=debug)
-                    self.printer.confirm("[Ok]")
-                except BaseException as e:
-                    self.printer.error(f"[Err] - {e}")
-                finally:
-                    os.unlink(tmp_path)

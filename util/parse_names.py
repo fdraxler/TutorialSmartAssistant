@@ -85,54 +85,14 @@ class FileNameParser:
         return "_".join(sorted("-".join(replace_special_chars(student.muesli_name).split(" ")) for student in self.students)) + f"_ex{self._exercise_number}.zip"
 
     def _strip_suffix(self):
-        exercise_number = self._exercise_number
-        file_name = self._file_name
-        correct_file_name_end = f'_ex{exercise_number}'
-
-        wrong_ends = [
-            (f"-ex{exercise_number}", f"Used '-' instead of '_' to mark end of filename. Please use '{correct_file_name_end}'"),
-            (f"_ex{exercise_number.lstrip('0')}", f"The exercise number should be formatted with two digits."),
-            (f"_Ex{exercise_number}", f"Please use lower case 'ex' instead of 'Ex'."),
-        ]
-
-        if not file_name.endswith(correct_file_name_end):
-            for possible_wrong_end, problem in wrong_ends:
-                if file_name.endswith(possible_wrong_end):
-                    self.problems.append(problem)
-                    file_name = file_name[:-len(possible_wrong_end)] + correct_file_name_end
-
-        if not file_name.endswith(correct_file_name_end):
-            self.problems.append(f"Filename does not end with required '{correct_file_name_end}'.")
-            while True:
-                file_name_ending_problem = "File name ending is not correct."
-                identified_ending = self.ask_retry(f"Please enter the part of\n\t{file_name!r}\nafter the last name. {correct_file_name_end!r} would have been correct.", file_name_ending_problem)
-                if file_name.endswith(identified_ending):
-                    if len(identified_ending) == 0:
-                        if not self.yes_no_retry("Entered string '' is empty. Is this correct?", file_name_ending_problem):
-                            continue
-                    else:
-                        file_name = file_name[:-len(identified_ending)]
-
-                    file_name = file_name + correct_file_name_end
-                    self._printer.inform("Corrected ending")
-                    self.problems.append(f"Your filename ended with {identified_ending!r}, but should have ended in {correct_file_name_end!r}")
-                    break
-                else:
-                    self._printer.warning(f"The filename does not end in {identified_ending!r}. Please try again or enter student names manually.")
-
-        return file_name[:-len(correct_file_name_end)]
+        return self._file_name[:self._file_name.index("-2")]
 
     def _identify_students(self, name_part):
         self._printer.inform(f"Finding students in '{self._file_name}'.")
 
         student_names = []
-        for student_name in name_part.split("_"):
-            parts = re.findall(r'[A-Z](?:[a-zöäüß]+|[A-Z]*(?=[A-Z]|$))', student_name)
-            if len(parts) > 0:
-                student_name = ("-".join(parts))
-
-            student_name = student_name.split("-")
-            student_name = " ".join(student_name)
+        for student_name in name_part.split("__"):
+            student_name = student_name.replace("_", " ")
             if len(student_name) > 0:
                 student_names.append(student_name)
 

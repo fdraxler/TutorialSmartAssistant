@@ -20,7 +20,10 @@ class SmartAssistant:
         self._storage = InteractiveDataStorage()
         self._printer = ConsoleFormatter()
         self._muesli = MuesliSession(account=self._storage.muesli_account)
-        self._moodle = MoodleSession(account=self._storage.moodle_account)
+        if self._storage.moodle_data:
+            self._moodle = MoodleSession(account=self._storage.moodle_account)
+        else:
+            self._moodle = None
         self._command_register = CommandRegister()
         self.ready = True
 
