@@ -28,9 +28,7 @@ class WorkflowDownloadCommand(Command):
         self._storage = storage
         self._moodle = moodle
 
-    def __call__(self, *args):
-        exercise_number = args[0]
-
+    def __call__(self, exercise_number):
         moodle_data = self._storage.moodle_data
 
         self.printer.inform('Connecting to Moodle and collecting data.')
@@ -92,6 +90,9 @@ class WorkflowDownloadCommand(Command):
             except Exception as e:
                 self.printer.error('[Err]')
                 self.printer.error(str(e))
+
+
+# todo write WorkflowExtractBulkCommand
 
 
 class WorkflowParseNamesCommand(Command):
@@ -570,6 +571,7 @@ class WorkflowConsolidate(Command):
             if not feedback_directory.is_dir():
                 feedback_directory.mkdir()
             copy_files(directory, feedback_directory, filter_and(filter_name_not_end("Feedback"), filter_name_not_end("submission_meta")))
+            # todo make zip file with Mampf name
             self.printer.confirm("[Ok]")
 
 
@@ -754,6 +756,8 @@ class WorkflowSendCrossTask(Command):
                 })
             json_save(data, file)
 
+        # todo Create directory with permuted zip file names
+        # todo Then send mail that cross feedback assignment is available
         with EMailSender(self._storage.email_account, self._storage.my_name) as sender:
             for submission_idx, (student, _) in zip(new_order, submissions):
                 creator_student, assigned_file = submissions[submission_idx]
