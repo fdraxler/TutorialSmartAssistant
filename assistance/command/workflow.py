@@ -94,7 +94,7 @@ class WorkflowDownloadCommand(Command):
 
 class WorkflowSetupEmptyCommand(Command):
     def __init__(self, printer, storage: InteractiveDataStorage):
-        super().__init__(printer, "workflow.setup", (), 1, 1)
+        super().__init__(printer, "workflow.setup", ("w.setup",), 1, 1)
         self._storage = storage
 
     def __call__(self, exercise_number):
