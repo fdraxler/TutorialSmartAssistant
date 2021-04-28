@@ -92,7 +92,19 @@ class WorkflowDownloadCommand(Command):
                 self.printer.error(str(e))
 
 
-# todo write WorkflowExtractBulkCommand
+class WorkflowSetupEmptyCommand(Command):
+    def __init__(self, printer, storage: InteractiveDataStorage):
+        super().__init__(printer, "workflow.setup", (), 1, 1)
+        self._storage = storage
+
+    def __call__(self, exercise_number):
+        raw_folder = Path(self._storage.get_raw_folder(exercise_number))
+        if raw_folder.is_dir():
+            raise ValueError(f"{raw_folder} exists! No need to create it.")
+        else:
+            raw_folder.mkdir(parents=True)
+
+        self.printer.inform(f"Created {raw_folder}. Please put students' uploaded zip files there.")
 
 
 class WorkflowParseNamesCommand(Command):

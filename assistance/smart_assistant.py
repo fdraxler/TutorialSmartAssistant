@@ -7,7 +7,7 @@ from assistance.command.info import InfoCommand
 from assistance.command.present import PresentCommand
 from assistance.command.stop import StopCommand
 from assistance.command.workflow import WorkflowDownloadCommand, WorkflowParseNamesCommand, WorkflowUnzipCommand, WorkflowPrepareCommand, \
-    WorkflowConsolidate, WorkflowUpload, WorkflowSendMail, WorkflowSendCrossTask, WorkflowSendConfirmation
+    WorkflowConsolidate, WorkflowUpload, WorkflowSendMail, WorkflowSendCrossTask, WorkflowSendConfirmation, WorkflowSetupEmptyCommand
 from assistance.commands import CommandRegister, parse_command, normalize_string
 from data.storage import InteractiveDataStorage
 from moodle.api import MoodleSession
@@ -34,6 +34,7 @@ class SmartAssistant:
         self._command_register.register_command(InfoCommand(self._printer, self._storage))
         self._command_register.register_command(ConnectionCommand(self._printer, self._moodle, self._muesli))
 
+        self._command_register.register_command(WorkflowSetupEmptyCommand(self._printer, self._storage))
         self._command_register.register_command(WorkflowDownloadCommand(self._printer, self._storage, self._moodle))
         self._command_register.register_command(WorkflowParseNamesCommand(self._printer, self._storage))
         self._command_register.register_command(WorkflowUnzipCommand(self._printer, self._storage))
