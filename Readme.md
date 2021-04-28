@@ -1,6 +1,6 @@
 # TutorialSmartAssistant
 
-Version used for Fundamentals of Machine Learning in winter 2020.
+Version used for Fundamentals of Machine Learning in summer 2021.
 
 ## Workflow
 
@@ -8,9 +8,15 @@ Version used for Fundamentals of Machine Learning in winter 2020.
 
 `XX` is the name of the exercise, e.g. 01a, 01b, ….
 
-1. `w.down XX`  downloads all submissions to moodle 
-2. `w.parse XX` parses the student names from the file. 
-3. `w.unzip XX` matches the zip filenames to moodle and muesli ids and unzips the solutions downloaded from moodle.
+1. `w.setup XX` creates an empty directory for the raw student uploads. 
+2. Bulk download submissions from MaMpf. Unzip the one file you got into the raw folder created in step 1.
+3. `w.parse XX` parses the student names from the file.
+4. `w.cross XX` creates a folder '06_Cross' which contains cross feedback assignments for your students.
+   Bulk upload these files as "corrections" on MaMpf ASAP.
+   
+----- Not updated for summer 2021
+
+4. `w.unzip XX` matches the zip filenames to moodle and muesli ids and unzips the solutions downloaded from moodle.
     1. When the names can't be matched, you need to help the system.
     2. Any problems in the naming will be reported and added as "problems" to the unzipped hand in. This is later included in the feedback file so that students know.
 4. Make sure to get the `cross-assignments.json` file for the sheet from the responsible tutor.
