@@ -153,7 +153,7 @@ class WorkflowParseNamesCommand(Command):
             if self.printer.yes_no("An error occurred. Do you want to store the current state?"):
                 with open(name_file, "w") as file:
                     json_save(names, file, indent=4)
-            raise
+            return
 
         with open(name_file, "w") as file:
             json_save(names, file, indent=4)
