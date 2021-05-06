@@ -502,7 +502,8 @@ class WorkflowPrepareCommand(Command):
             any_feedback = any(was_assigned_to_muesli_id in all_next_submissions for was_assigned_to_muesli_id in was_assigned_to_muesli_ids)
             if any_prev and any_feedback:
                 for was_assigned_to_muesli_id in was_assigned_to_muesli_ids:
-                    next_cross_submissions.add(all_next_submissions[was_assigned_to_muesli_id])
+                    if was_assigned_to_muesli_id in all_next_submissions:
+                        next_cross_submissions.add(all_next_submissions[was_assigned_to_muesli_id])
         for next_cross_submission in next_cross_submissions:
             # Find files ending with cross[-_]commented.X and copy them over
             cross_target = target_directory / f"Cross by {next_cross_submission.name}"
