@@ -424,8 +424,8 @@ Have an awesome day!
 
 
 class WorkflowPrepareCommand(Command):
-    FILTER_CROSS_COMMENT = filter_or(filter_name_end("cross-commented"), filter_name_end("cross_commented"))
-    FILTER_SELF_COMMENT = filter_and(filter_name_end("commented"), filter_not(FILTER_CROSS_COMMENT))
+    FILTER_CROSS_COMMENT = filter_or(filter_name_end("cross-commented"), filter_name_end("cross_commented"), filter_name_end("cross-feedback"), filter_name_end("cross_feedback"))
+    FILTER_SELF_COMMENT = filter_and(filter_or(filter_name_end("commented"), filter_name_end("feedback")), filter_not(FILTER_CROSS_COMMENT))
 
     def __init__(self, printer, storage: InteractiveDataStorage, muesli: MuesliSession):
         super().__init__(printer, "workflow.prepare", ("w.prep",), 1, 2)
@@ -497,9 +497,12 @@ class WorkflowPrepareCommand(Command):
 
     def copy_cross_feedback(self, cross_assignments, submission_muesli_ids, all_next_submissions, target_directory):
         next_cross_submissions = set()
-        for solution_by_muesli_id, was_assigned_to_muesli_id in cross_assignments:
-            if solution_by_muesli_id in submission_muesli_ids and was_assigned_to_muesli_id in all_next_submissions:
-                next_cross_submissions.add(all_next_submissions[was_assigned_to_muesli_id])
+        for solution_by_muesli_ids, was_assigned_to_muesli_ids in cross_assignments:
+            any_prev = any(solution_by_muesli_id in submission_muesli_ids for solution_by_muesli_id in solution_by_muesli_ids)
+            any_feedback = any(was_assigned_to_muesli_id in all_next_submissions for was_assigned_to_muesli_id in was_assigned_to_muesli_ids)
+            if any_prev and any_feedback:
+                for was_assigned_to_muesli_id in was_assigned_to_muesli_ids:
+                    next_cross_submissions.add(all_next_submissions[was_assigned_to_muesli_id])
         for next_cross_submission in next_cross_submissions:
             # Find files ending with cross[-_]commented.X and copy them over
             cross_target = target_directory / f"Cross by {next_cross_submission.name}"
@@ -535,8 +538,8 @@ class WorkflowPrepareCommand(Command):
             data = j_load(file)
             for assignment in data:
                 assignments.append((
-                    assignment["submission_by_muesli_student_id"],
-                    assignment["assigned_to_muesli_student_id"]
+                    assignment["submission_by_muesli_student_ids"],
+                    assignment["assigned_to_muesli_student_ids"]
                 ))
         return assignments
 

@@ -54,7 +54,7 @@ class FileNameParser:
                         break
 
         if len(self.problems) > 0:
-            self.problems.append(f"The perfect file name for your group is '{self.correctly_named_file}'")
+            self.problems.append(f"Please make sure that your MaMpf names read: {self.correctly_named_file}")
         if len(self.students) < 2:
             self.problems.append("Submission groups should consist at least of 2 members!")
         if 3 < len(self.students):
@@ -82,7 +82,7 @@ class FileNameParser:
 
     @property
     def correctly_named_file(self):
-        return "_".join(sorted("-".join(replace_special_chars(student.muesli_name).split(" ")) for student in self.students)) + f"_ex{self._exercise_number}.zip"
+        return ", ".join(sorted(replace_special_chars(student.muesli_name) for student in self.students))
 
     def _strip_suffix(self):
         return self._file_name[:self._file_name.index("-2")]
