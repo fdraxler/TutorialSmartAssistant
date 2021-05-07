@@ -11,10 +11,7 @@ Version used for Fundamentals of Machine Learning in summer 2021.
 1. `w.setup XX` creates an empty directory for the raw student uploads. 
 2. Bulk download submissions from MaMpf. Unzip the one file you got into the raw folder created in step 1.
 3. `w.parse XX` parses the student names from the file.
-4. Only necessary if submission is not a feedback-submission: `w.cross XX` creates a folder '06_Cross' which contains cross feedback assignments for your students.
-   Bulk upload these files as "corrections" on MaMpf ASAP.
-   
-
+4. `w.cross XX` creates a folder '06_Cross' which contains cross feedback assignments for your students. Bulk upload these files as "corrections" on MaMpf ASAP. (Only necessary if submission is not a feedback-submission)
 5. `w.unzip XX` matches the zip filenames to moodle and muesli ids and unzips the solutions downloaded from moodle.
     1. When the names can't be matched, you need to help the system.
     2. Any problems in the naming will be reported and added as "problems" to the unzipped hand in. This is later included in the feedback file so that students know.
@@ -28,6 +25,7 @@ Version used for Fundamentals of Machine Learning in summer 2021.
         2. Write `[@+X]` for bonus points when the solution is especially nice.
     3. If you want to make detailed comments, copy the `whatever-commented.ipynb` to `whatever-corrected.ipynb` and add changes there, i.e. using `<span style="color:red;font-weight:bold">Comment</span>` in Markdown. Make sure to export this file to `whatever-corrected.html`.
     4. Look at the cross feedback. When it meets the requirements, open up the cross feedback point page in Müsli and enter the information directly. Make sure to keep the page open for short time, otherwise you might overwrite other tutor's input. (Will be updated for the next submission)
+
 ----- Not updated for summer 2021
 8. `w.cons XX` parses the information in the corrected directories and copies them.
 9. `w.up XX` sends the corrected directories as zip files uploads the achieved points to Müsli.
