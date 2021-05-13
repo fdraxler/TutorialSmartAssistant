@@ -25,11 +25,8 @@ Version used for Fundamentals of Machine Learning in summer 2021.
         2. Write `[@+X]` for bonus points when the solution is especially nice.
     3. If you want to make detailed comments, copy the `whatever-commented.ipynb` to `whatever-corrected.ipynb` and add changes there, i.e. using `<span style="color:red;font-weight:bold">Comment</span>` in Markdown. Make sure to export this file to `whatever-corrected.html`.
     4. Look at the cross feedback. When it meets the requirements, open up the cross feedback point page in Müsli and enter the information directly. Make sure to keep the page open for short time, otherwise you might overwrite other tutor's input. (Will be updated for the next submission)
-
------ Not updated for summer 2021
 8. `w.cons XX` parses the information in the corrected directories and copies them.
-9. `w.up XX` sends the corrected directories as zip files uploads the achieved points to Müsli.
-10. `w.send XX [--debug]` sends the Feedback and all files in the corrected submissions to all students via mail. The debug flag sends all emails only to your own address.
+9. `w.zip XX` zips the corrections in ../../05_Fertig/Mampf_Correcitons. From there they can be uploaded to Mampf. 
 
 
 ### Cross Assignments
