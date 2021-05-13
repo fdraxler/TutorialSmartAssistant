@@ -9,7 +9,7 @@ from os.path import join as p_join
 from pathlib import Path
 from types import SimpleNamespace
 from typing import List, Dict
-from zipfile import BadZipFile
+from zipfile import BadZipFile, ZipFile
 
 import numpy as np
 
@@ -645,13 +645,20 @@ class WorkflowZipCommand(Command):
 
     def __call__(self, exercise_number):
         finished_folder = Path(self._storage.get_finished_folder(exercise_number))
+        mampf_folder = finished_folder / 'Mampf_Corrections'
+        mampf_folder.mkdir(parents=True, exist_ok=True)
 
         for submission_folder in finished_folder.iterdir():
             if submission_folder.is_dir():
-                with open(submission_folder / "meta.json", "r") as file:
-                    meta_info = json.load(file)
+                if submission_folder != mampf_folder:
+                    with open(submission_folder / "meta.json", "r") as file:
 
-                # todo Zip "Feedback.txt" and "Original and Comments" into file named like meta_info["original_name"]
+                        meta_info = json.load(file)
+                        with ZipFile(mampf_folder / meta_info['original_name'], 'w') as zipF:
+                            for file in ['Original and Comments','Feedback.txt']:
+                                zipF.write(filename=submission_folder / file, arcname=file)
+
+        print('Corrections ready to upload for Mampf: 05_Fertig/Mampf_Corrections')
 
 
 class WorkflowSendMail(Command):
