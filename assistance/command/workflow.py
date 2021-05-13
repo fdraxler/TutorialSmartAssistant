@@ -1,3 +1,4 @@
+import json
 import os
 import shutil
 from collections import defaultdict
@@ -587,7 +588,6 @@ class WorkflowConsolidate(Command):
             if not feedback_directory.is_dir():
                 feedback_directory.mkdir()
             copy_files(directory, feedback_directory, filter_and(filter_name_not_end("Feedback"), filter_name_not_end("submission_meta")))
-            # todo make zip file with Mampf name
             self.printer.confirm("[Ok]")
 
 
@@ -636,6 +636,22 @@ class WorkflowUpload(Command):
                 else:
                     self.printer.error("[Err]")
                     self.printer.error("Please check your connection state.")
+
+
+class WorkflowZipCommand(Command):
+    def __init__(self, printer, storage: InteractiveDataStorage):
+        super().__init__(printer, "workflow.zip", ("w.zip",), 1, 1)
+        self._storage = storage
+
+    def __call__(self, exercise_number):
+        finished_folder = Path(self._storage.get_finished_folder(exercise_number))
+
+        for submission_folder in finished_folder.iterdir():
+            if submission_folder.is_dir():
+                with open(submission_folder / "meta.json", "r") as file:
+                    meta_info = json.load(file)
+
+                # todo Zip "Feedback.txt" and "Original and Comments" into file named like meta_info["original_name"]
 
 
 class WorkflowSendMail(Command):

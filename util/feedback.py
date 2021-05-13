@@ -13,7 +13,10 @@ class FeedbackPolisher:
         self._task_prefix = storage.muesli_data.feedback.task_prefix
         self._file_name = f"{self._storage.muesli_data.feedback.file_name}.txt"
         self._path = os.path.join(path, self._file_name)
-        self._students = self._find_students(path)
+
+        with open(os.path.join(path, "submission_meta.json"), "r") as file:
+            self._data = load(file)
+        self._students = self._find_students()
         self._segments = self._read_segments()
 
         self._analyze_credit_annotations()
@@ -93,10 +96,8 @@ class FeedbackPolisher:
         for i in range(len(self._salutation)):
             self._salutation[i] = (self._salutation[i] + (' ' * max_length))[:max_length]
 
-    def _find_students(self, path):
-        with open(os.path.join(path, "submission_meta.json"), "r") as file:
-            data = load(file)
-        return [self._storage.get_student_by_muesli_id(muesli_id) for muesli_id in data["muesli_student_ids"]]
+    def _find_students(self):
+        return [self._storage.get_student_by_muesli_id(muesli_id) for muesli_id in self._data["muesli_student_ids"]]
 
     def _polish_feedback(self, table):
         table = ["\n"] + table + ["\n"]
@@ -126,6 +127,7 @@ class FeedbackPolisher:
         meta_data["names"] = [student.muesli_name for student in self._students]
         meta_data["muesli_ids"] = [student.muesli_student_id for student in self._students]
         meta_data["muesli_mails"] = [student.muesli_mail for student in self._students]
+        meta_data["original_name"] = self._data["original_name"]
 
         with open(os.path.join(directory, "meta.json"), 'w', encoding="utf-8") as fp:
             j_dump(meta_data, fp, indent=4)
