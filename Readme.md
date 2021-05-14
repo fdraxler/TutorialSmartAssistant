@@ -27,10 +27,12 @@ Version used for Fundamentals of Machine Learning in summer 2021.
     4. Look at the cross feedback. When it meets the requirements, open up the cross feedback point page in Müsli and enter the information directly. Make sure to keep the page open for short time, otherwise you might overwrite other tutor's input. (Will be updated for the next submission)
 8. `w.cons XX` parses the information in the corrected directories and copies them.
 9. `w.zip XX` zips the corrections in ../../05_Fertig/Mampf_Correcitons. From there they can be uploaded to Mampf. 
+10. `w.up XX` sends grades to Müsli.
 
 
 ### Cross Assignments
 
+Not relevant for 2021:
 1. Make sure you ran `w.down XX` as before `w.uz XX`
 3. `w.cross XX [--debug]` assigns each submission from this exercise to another group who handed in.
     1. Results are stored `cross-assignments.json`
