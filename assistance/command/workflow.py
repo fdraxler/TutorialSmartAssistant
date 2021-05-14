@@ -656,10 +656,19 @@ class WorkflowZipCommand(Command):
                         meta_info = json.load(file)
                         with ZipFile(mampf_folder / meta_info['original_name'], 'w') as zipF:
                             for file in ['Original and Comments','Feedback.txt']:
-                                zipF.write(filename=submission_folder / file, arcname=file)
+                                if file == 'Feedback.txt':
+                                    zipF.write(filename=submission_folder / file, arcname=file)
+                                else:
+                                    self._zipdir(submission_folder /file, zipF, file)
 
         print('Corrections ready to upload for Mampf: 05_Fertig/Mampf_Corrections')
 
+    def _zipdir(self,path, ziph, arcname):
+        for root, dirs, files in os.walk(path):
+            for file in files:
+                ziph.write(os.path.join(root, file), 
+                    os.path.relpath(os.path.join(root, file), 
+                        os.path.join(path, '..')))
 
 class WorkflowSendMail(Command):
     def __init__(self, printer, storage: InteractiveDataStorage):
