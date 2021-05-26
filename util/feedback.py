@@ -32,7 +32,7 @@ class FeedbackPolisher:
             buffer = list()
             group_type = "__intro__"
             for line in fp:
-                line = line[:-1]
+                line = line.rstrip("\n\r")
                 matcher = task_pattern.match(line)
                 if matcher:
                     task_number = int(matcher.group("task_number"))
