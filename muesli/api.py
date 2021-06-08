@@ -260,7 +260,7 @@ class MuesliSession(BaseSession):
 
         return data
 
-    def upload_credits(self, tutorial_id, exercise_id, credit_data):
+    def upload_credits(self, tutorial_id, exercise_id, credit_data, printer):
         credits_url = f"https://muesli.mathi.uni-heidelberg.de/exam/enter_points/{exercise_id}/{tutorial_id}"
 
         soup = self.get(credits_url)
@@ -272,10 +272,19 @@ class MuesliSession(BaseSession):
 
         for row_id, row in rows.items():
             for idx, column in enumerate(row.find_all('input')[:-1]):
+                muesli_id = int(row_id[4:])
                 try:
                     data[column['name']] = float(column['value'])
+                    if muesli_id in credit_data:
+                        student_name = row.find("td").get_text()
+                        if printer.yes_no(
+                                f"Overwrite existing points in Muesli for "
+                                f"{student_name}? Muesli: {column['value']}, "
+                                f"you: {credit_data[muesli_id]}.", ""
+                        ):
+                            raise KeyError()
                 except KeyError:
-                    credit = credit_data.get(int(row_id[4:]))
+                    credit = credit_data.get(muesli_id)
                     if credit is not None:
                         credit = credit[idx]
                     data[column['name']] = credit

@@ -620,15 +620,14 @@ class WorkflowUpload(Command):
             for tutorial_id, student_data in data.items():
                 tutorial = self._storage.get_tutorial_by_id(tutorial_id)
                 self.printer.inform(
-                    f"Uploading credits to {tutorial.time} for {len(student_data.keys()):>3d} students ... ",
-                    end=''
+                    f"Uploading credits to {tutorial.time} for {len(student_data.keys()):>3d} students ... "
                 )
                 exercise_id = self._muesli.get_exercise_id(
                     tutorial_id,
                     self._storage.muesli_data.exercise_prefix,
                     exercise_number
                 )
-                status, number_of_changes = self._muesli.upload_credits(tutorial_id, exercise_id, student_data)
+                status, number_of_changes = self._muesli.upload_credits(tutorial_id, exercise_id, student_data, self.printer)
 
                 if status:
                     self.printer.confirm("[Ok]", end="")
