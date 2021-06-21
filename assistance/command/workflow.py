@@ -381,7 +381,7 @@ class WorkflowSendConfirmation(Command):
             raise ValueError(f"Invalid argument {debug_flag!r}.")
 
         if not preprocessed_folder.is_dir():
-            self.printer.error(f"The data for exercise {exercise_number} was not preprocessed. Run workflow.unzip first.")
+            self.printer.error(f"The data for exercise {exercise_number} was not extracted. Run workflow.unzip first.")
             return
 
         with EMailSender(self._storage.email_account, self._storage.my_name) as sender:
@@ -443,7 +443,7 @@ class WorkflowPrepareCommand(Command):
         working_folder = Path(self._storage.get_working_folder(exercise_number))
 
         if not preprocessed_folder.exists():
-            self.printer.error(f"The data for exercise {exercise_number} was not preprocessed. Run workflow.unzip first:")
+            self.printer.error(f"The data for exercise {exercise_number} was not extracted. Run workflow.unzip first:")
             self.printer.indent()
             self.printer.warning(str(preprocessed_folder))
             self.printer.outdent()
