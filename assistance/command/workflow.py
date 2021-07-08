@@ -118,6 +118,7 @@ class WorkflowParseNamesCommand(Command):
         name_file = ex_folder / "names.json"
 
         zip_file_names = self.find_zip_files(exercise_number)
+        self.printer.inform(f"Found {len(zip_file_names)} input files.")
 
         if name_file.is_file():
             with open(name_file, "r") as file:
@@ -244,8 +245,18 @@ class WorkflowParseNamesCommand(Command):
                 zip_file_names.append(file_name)
             elif file_name != "meta.json":
                 self.printer.error(f"File name is {file_name} -- no known compressed file!")
-                if not self.printer.yes_no("Ignore and continue?"):
-                    break
+                while True:
+                    answer = self.printer.ask("Choose [s]kip, [l]eave uncompressed or [a]bort.").strip().lower()
+                    if answer[0] in "sla":
+                        break
+                    else:
+                        self.printer.warning("Did not understand your answer.")
+                if answer[0] == "s":
+                    continue
+                elif answer[0] == "a":
+                    raise ValueError("Found invalid file name, aborting due to user request.")
+                elif answer[0] == "l":
+                    zip_file_names.append(file_name)
         return zip_file_names
 
     def parse_names_from_file(self, file, exercise_number):
