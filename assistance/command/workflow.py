@@ -332,42 +332,67 @@ class WorkflowUnzipCommand(Command):
                 else:
                     self.printer.error("Please remove or retry with '--skip'")
                     break
+            else:
+                target_path.mkdir(parents=True)
 
-            if not file.endswith("zip"):
-                extension = zip_path.suffix
-                problems.append(f"Minor: Wrong archive format, please use '.zip' instead of '{extension}'.")
-
-            try:
+            if is_zip_file(file):
                 self.printer.inform(f"Unpacking {file} ... ", end="")
+                extension = zip_path.suffix
                 try:
-                    shutil.unpack_archive(zip_path, target_path)
-                except (BadZipFile, NotImplementedError) as e:
-                    self.printer.warning("")
-                    self.printer.warning(f"Detected bad zip file: {e}")
-                    self.printer.warning(f"Trying different archive types ...")
-                    with self.printer:
-                        problem = None
-                        for type in ("7z", "tar", "gztar", "bztar", "xztar"):
-                            try:
-                                shutil.unpack_archive(zip_path, target_path, format=type)
-                                problem = f"Wrong file extension provided - this file was actually a {type}!"
-                                break
-                            except:
-                                self.printer.warning(f"... {type} failed!")
+                    if not file.endswith("zip"):
+                        problems.append(
+                            f"Minor: Wrong archive format, please use '.zip' instead of '{extension}'.")
+                    try:
+                        shutil.unpack_archive(zip_path, target_path)
+                        self.printer.confirm("[OK]")
+                    except (BadZipFile, NotImplementedError) as e:
+                        self.printer.warning("")
+                        self.printer.warning(f"Detected bad zip file: {e}")
+                        self.printer.warning(
+                            f"Trying different archive types ...")
+                        with self.printer:
+                            problem = None
+                            for type in ("7z", "tar", "gztar", "bztar", "xztar"):
+                                try:
+                                    shutil.unpack_archive(zip_path, target_path,
+                                                          format=type)
+                                    problem = f"Wrong file extension provided - this file was actually a {type}!"
+                                    break
+                                except:
+                                    self.printer.warning(f"... {type} failed!")
 
-                    if problem is None:
-                        problems.append("Could not unzip zip file. Copying zip file to target.")
-                        self.printer.error(f"Fatal error: {file} could not be unpacked!")
-                        self.printer.error("[ERR]")
-                        shutil.copy(zip_path, target_path)
-                        self.printer.inform("Copied zip file to target.")
+                        if problem is None:
+                            problems.append(
+                                "Could not unzip zip file. Copying zip file to target.")
+                            self.printer.error(
+                                f"Fatal error: {file} could not be unpacked!")
+                            self.printer.error("[ERR]")
+                            shutil.copy(zip_path, target_path)
+                            self.printer.inform("Copied zip file to target.")
+                        else:
+                            problems.append(problem)
+                except shutil.ReadError:
+                    self.printer.error(
+                        f"Not supported archive-format: '{extension}'")
+                    problems.append(
+                        f"Not supported archive-format: '{extension}'")
+            elif file != "meta.json":
+                self.printer.warning(
+                    f"File name is {file} -- no known compressed file!")
+                while True:
+                    answer = self.printer.ask(
+                        "Choose [s]kip, [l]eave uncompressed or [a]bort.").strip().lower()
+                    if answer[0] in "sla":
+                        break
                     else:
-                        problems.append(problem)
-
-                self.printer.confirm("[OK]")
-            except shutil.ReadError:
-                self.printer.error(f"Not supported archive-format: '{extension}'")
-                problems.append(f"Not supported archive-format: '{extension}'")
+                        self.printer.warning("Did not understand your answer.")
+                if answer[0] == "s":
+                    continue
+                elif answer[0] == "a":
+                    raise ValueError(
+                        "Found invalid file name, aborting due to user request.")
+                elif answer[0] == "l":
+                    shutil.copy(zip_path, target_path)
 
             with open(target_path / "submission_meta.json", 'w') as fp:
                 json_save(data, fp)
